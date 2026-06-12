@@ -1,0 +1,57 @@
+name: bit_finder
+description: "Bit Finder - A replica of BitCrack KeyFinder for Bitcoin private key challenge searching"
+publish_to: 'none'
+version: 1.2.0+8
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Cryptography
+  crypto: ^3.0.3
+  pointycastle: ^3.7.4
+  
+  # Utilities
+  intl: any
+  vibration: ^2.0.0
+  shared_preferences: ^2.3.3
+  wakelock_plus: ^1.2.8
+  ffi: ^2.1.3
+  url_launcher: ^6.3.1
+  google_mobile_ads: ^6.0.0
+  flutter_localizations:
+    sdk: flutter
+  package_info_plus: ^9.0.0
+  flutter_launcher_icons: "^0.14.4"
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/icon.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  adaptive_icon_foreground: "assets/logo_fundo.png"
+  adaptive_icon_background: "assets/fundo.png"
+  adaptive_icon_monochrome: "assets/icon.png"
+  # Para gerar icone novo, rodar no terminal: 
+  # dart run flutter_launcher_icons
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/wallet_challenges.json
+    - assets/icon.png
+    - assets/logo_fundo.png
+    - assets/fundo.png

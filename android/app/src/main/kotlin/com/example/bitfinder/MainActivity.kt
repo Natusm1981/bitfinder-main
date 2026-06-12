@@ -1,0 +1,72 @@
+package br.net.mantovani.bitfinder
+
+import android.content.Context
+import android.os.Build
+import android.os.PowerManager
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.Executors
+
+class MainActivity : FlutterActivity() {
+    private val executor = Executors.newCachedThreadPool()
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "native_crypto"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isAvailable" -> result.success(NativeCrypto.isNativeAvailable())
+                "getThermalStatus" -> {
+                    val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val powerManager =
+                            getSystemService(Context.POWER_SERVICE) as PowerManager
+                        powerManager.currentThermalStatus
+                    } else {
+                        PowerManager.THERMAL_STATUS_NONE
+                    }
+                    result.success(status)
+                }
+                "searchBatch" -> {
+                    val startKey = call.argument<ByteArray>("startKey")
+                    val count = call.argument<Int>("count")
+                    val stride = call.argument<ByteArray>("stride")
+                    val compressionMode = call.argument<Int>("compressionMode")
+                    val rawTargets = call.argument<List<ByteArray>>("targetHashes")
+
+                    if (startKey == null || count == null || stride == null ||
+                        compressionMode == null || rawTargets == null) {
+                        result.error("INVALID_ARGS", "Missing batch arguments", null)
+                        return@setMethodCallHandler
+                    }
+
+                    executor.execute {
+                        try {
+                            val batch = NativeCrypto.searchBatch(
+                                startKey,
+                                count,
+                                stride,
+                                compressionMode,
+                                rawTargets.toTypedArray()
+                            )
+                            runOnUiThread { result.success(batch) }
+                        } catch (error: Throwable) {
+                            runOnUiThread {
+                                result.error("NATIVE_ERROR", error.message, null)
+                            }
+                        }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        executor.shutdownNow()
+        super.onDestroy()
+    }
+}

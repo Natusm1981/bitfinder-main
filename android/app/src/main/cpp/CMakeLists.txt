@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.22)
+
+project(bitcoin_crypto LANGUAGES C CXX)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(SECP256K1_INSTALL OFF CACHE BOOL "" FORCE)
+set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
+set(SECP256K1_ENABLE_MODULE_EXTRAKEYS OFF CACHE BOOL "" FORCE)
+set(SECP256K1_ENABLE_MODULE_SCHNORRSIG OFF CACHE BOOL "" FORCE)
+set(SECP256K1_ENABLE_MODULE_MUSIG OFF CACHE BOOL "" FORCE)
+set(SECP256K1_ENABLE_MODULE_ELLSWIFT OFF CACHE BOOL "" FORCE)
+set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
+set(SECP256K1_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SECP256K1_BUILD_EXHAUSTIVE_TESTS OFF CACHE BOOL "" FORCE)
+set(SECP256K1_BUILD_CTIME_TESTS OFF CACHE BOOL "" FORCE)
+set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(deps/secp256k1)
+
+add_library(bitcoin_crypto SHARED bitcoin_crypto.cpp)
+
+find_library(log-lib log)
+
+target_link_libraries(bitcoin_crypto PRIVATE secp256k1 ${log-lib})
+target_compile_features(bitcoin_crypto PRIVATE cxx_std_17)
+target_compile_options(bitcoin_crypto PRIVATE
+    -O3
+    -fno-rtti
+    -fvisibility=hidden
+)
