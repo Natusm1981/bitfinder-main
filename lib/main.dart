@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/key_finder_provider.dart';
@@ -10,11 +13,13 @@ import 'providers/performance_provider.dart';
 import 'providers/locale_provider.dart';
 import 'screens/key_finder_screen.dart';
 import 'screens/about_screen.dart';
+import 'services/app_open_ad_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/fast_crypto.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await MobileAds.instance.initialize();
 
   // Inicializar crypto nativo (agora é async)
   await FastCrypto.initialize();
@@ -22,8 +27,43 @@ void main() async {
   runApp(const BitFinderApp());
 }
 
-class BitFinderApp extends StatelessWidget {
+class BitFinderApp extends StatefulWidget {
   const BitFinderApp({super.key});
+
+  @override
+  State<BitFinderApp> createState() => _BitFinderAppState();
+}
+
+class _BitFinderAppState extends State<BitFinderApp>
+    with WidgetsBindingObserver {
+  final AppOpenAdService _appOpenAdService = AppOpenAdService();
+  bool _initialAdRequested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _initialAdRequested) {
+      unawaited(_appOpenAdService.showIfEligible());
+    }
+  }
+
+  Future<void> _showInitialAd() async {
+    if (_initialAdRequested) return;
+    _initialAdRequested = true;
+    await _appOpenAdService.showIfEligible();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _appOpenAdService.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +103,7 @@ class BitFinderApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             supportedLocales: AppLocalizations.supportedLocales,
-            home: const InitialScreen(),
+            home: InitialScreen(onReady: _showInitialAd),
             debugShowCheckedModeBanner: false,
           );
         },
@@ -73,7 +113,9 @@ class BitFinderApp extends StatelessWidget {
 }
 
 class InitialScreen extends StatefulWidget {
-  const InitialScreen({super.key});
+  final Future<void> Function() onReady;
+
+  const InitialScreen({super.key, required this.onReady});
 
   @override
   State<InitialScreen> createState() => _InitialScreenState();
@@ -89,25 +131,25 @@ class _InitialScreenState extends State<InitialScreen> {
   Future<void> _checkFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('first_launch') ?? true;
+    await widget.onReady();
+    if (!mounted) return;
 
-    if (mounted) {
-      if (isFirstLaunch) {
-        // Marcar como não sendo mais primeira execução
-        await prefs.setBool('first_launch', false);
-        if (!mounted) return;
+    if (isFirstLaunch) {
+      // Marcar como não sendo mais primeira execução
+      await prefs.setBool('first_launch', false);
+      if (!mounted) return;
 
-        // Navegar para tela Sobre
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const AboutScreenWithContinue(),
-          ),
-        );
-      } else {
-        // Navegar para tela principal
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const KeyFinderScreen()),
-        );
-      }
+      // Navegar para tela Sobre
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const AboutScreenWithContinue(),
+        ),
+      );
+    } else {
+      // Navegar para tela principal
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const KeyFinderScreen()),
+      );
     }
   }
 

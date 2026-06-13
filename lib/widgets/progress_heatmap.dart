@@ -94,11 +94,13 @@ class ProgressHeatmap extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey[700]!, width: 2),
               ),
-              child: CustomPaint(
-                size: Size(size, size),
-                painter: _HeatmapPainter(
-                  progress: progress!,
-                  gridSize: gridSize,
+              child: ClipRect(
+                child: CustomPaint(
+                  size: Size(size, size),
+                  painter: _HeatmapPainter(
+                    progress: progress!,
+                    gridSize: gridSize,
+                  ),
                 ),
               ),
             ),
@@ -156,7 +158,11 @@ class _HeatmapPainter extends CustomPainter {
           ..color = Colors.red
           ..style = PaintingStyle.fill;
 
-    canvas.drawColor(Colors.green, BlendMode.src);
+    final backgroundPaint =
+        Paint()
+          ..color = Colors.green
+          ..style = PaintingStyle.fill;
+    canvas.drawRect(Offset.zero & size, backgroundPaint);
     for (final blockIndex in progress.testedBlocks) {
       final row = blockIndex ~/ gridSize;
       final col = blockIndex % gridSize;
