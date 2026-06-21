@@ -38,6 +38,7 @@ class KeyFinder {
   void Function(KeySearchResult)? onResult;
   void Function(KeySearchStatus)? onStatus;
   void Function(BigInt start, BigInt end)? onProgress;
+  void Function(BigInt nextKey)? onCheckpoint;
   void Function()? onCompleted;
   void Function(String)? onError;
 
@@ -58,7 +59,7 @@ class KeyFinder {
     _threadKeysChecked.clear();
     _threadNextKeys.clear();
     _completedWorkers = 0;
-    _nextSequenceIndex = BigInt.zero;
+    _nextSequenceIndex = _initialSequenceIndex();
     _nextBatchId = 0;
     _contiguousBatchId = 0;
     _completedBatchEnds.clear();
@@ -206,10 +207,21 @@ class KeyFinder {
     );
   }
 
+  BigInt _initialSequenceIndex() {
+    if (config.searchMode != SearchMode.sequential ||
+        config.nextKey <= config.startKey) {
+      return BigInt.zero;
+    }
+    final index = (config.nextKey - config.startKey) ~/ config.stride;
+    final alignedKey = config.startKey + index * config.stride;
+    return alignedKey < config.nextKey ? index + BigInt.one : index;
+  }
+
   void _advanceCheckpoint() {
     while (_completedBatchEnds.containsKey(_contiguousBatchId)) {
       final sequenceEnd = _completedBatchEnds.remove(_contiguousBatchId)!;
       config.nextKey = config.startKey + sequenceEnd * config.stride;
+      onCheckpoint?.call(config.nextKey);
       _contiguousBatchId++;
     }
   }
@@ -218,8 +230,13 @@ class KeyFinder {
     _receivePort = ReceivePort();
     _receivePort!.listen(_handleDartMessage);
 
-    final keyCount =
-        (config.endKey - config.startKey) ~/ config.stride + BigInt.one;
+    final resumeKey =
+        config.nextKey < config.startKey ? config.startKey : config.nextKey;
+    if (resumeKey > config.endKey) {
+      _finish();
+      return;
+    }
+    final keyCount = (config.endKey - resumeKey) ~/ config.stride + BigInt.one;
     final perWorker =
         (keyCount + BigInt.from(config.numThreads - 1)) ~/
         BigInt.from(config.numThreads);
@@ -232,9 +249,9 @@ class KeyFinder {
       }
       final endIndex = minBigInt(keyCount, startIndex + perWorker) - BigInt.one;
       final workerConfig = config.copyWith(
-        startKey: config.startKey + startIndex * config.stride,
-        nextKey: config.startKey + startIndex * config.stride,
-        endKey: config.startKey + endIndex * config.stride,
+        startKey: resumeKey + startIndex * config.stride,
+        nextKey: resumeKey + startIndex * config.stride,
+        endKey: resumeKey + endIndex * config.stride,
       );
       _threadKeysChecked[workerId] = BigInt.zero;
       _threadNextKeys[workerId] = workerConfig.startKey;
@@ -271,6 +288,7 @@ class KeyFinder {
         (sum, value) => sum + value,
       );
       config.nextKey = _threadNextKeys.values.reduce(minBigInt);
+      onCheckpoint?.call(config.nextKey);
       onProgress?.call(
         message['batchStart'] as BigInt,
         message['batchEnd'] as BigInt,
@@ -379,7 +397,7 @@ class KeyFinder {
         totalTime: 0,
         deviceName: _deviceName,
         targets: config.targets.length,
-        nextKey: config.startKey,
+        nextKey: config.nextKey,
       ),
     );
   }

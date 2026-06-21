@@ -66,4 +66,32 @@ void main() {
     expect(config.nextKey, lessThanOrEqualTo(config.endKey + BigInt.one));
     finder.dispose();
   });
+
+  test('sequential search resumes from nextKey instead of startKey', () async {
+    final address = '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH';
+    final config = KeySearchConfig(
+      startKey: BigInt.one,
+      nextKey: BigInt.from(2),
+      endKey: BigInt.from(4),
+      targets: [
+        KeySearchTarget(address: address, hash160: List<int>.filled(5, 0)),
+      ],
+    );
+    final finder = KeyFinder(config);
+    final completed = Completer<void>();
+    KeySearchResult? unexpectedResult;
+    finder.onResult = (result) {
+      unexpectedResult = result;
+      if (!completed.isCompleted) completed.complete();
+    };
+    finder.onCompleted = completed.complete;
+    finder.onError = completed.completeError;
+
+    await finder.start();
+    await completed.future.timeout(const Duration(seconds: 10));
+
+    expect(unexpectedResult, isNull);
+    expect(config.nextKey, BigInt.from(5));
+    finder.dispose();
+  });
 }

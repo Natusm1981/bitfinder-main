@@ -3,16 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/search_progress.dart';
 
 class SearchProgressProvider extends ChangeNotifier {
+  late final Future<void> _loadFuture;
   SearchProgress? _currentProgress;
   final Map<String, SearchProgress> _savedProgresses = {};
   int _changesSinceSave = 0;
+  DateTime? _lastCheckpointSave;
 
   SearchProgress? get currentProgress => _currentProgress;
   Map<String, SearchProgress> get savedProgresses =>
       Map.unmodifiable(_savedProgresses);
 
   SearchProgressProvider() {
-    _loadProgresses();
+    _loadFuture = _loadProgresses();
   }
 
   /// Carrega os progressos salvos
@@ -41,12 +43,13 @@ class SearchProgressProvider extends ChangeNotifier {
   }
 
   /// Inicia um novo progresso ou carrega existente
-  Future<void> startProgress({
+  Future<SearchProgress> startProgress({
     required String keyspaceId,
     required BigInt startKey,
     required BigInt endKey,
     int gridSize = 200,
   }) async {
+    await _loadFuture;
     final totalBlocks = gridSize * gridSize;
 
     // Verifica se já existe progresso salvo para este keyspace
@@ -62,6 +65,7 @@ class SearchProgressProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+    return _currentProgress!;
   }
 
   /// Atualiza o progresso com uma chave testada
@@ -99,6 +103,18 @@ class SearchProgressProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateCheckpoint(BigInt nextKey) async {
+    if (_currentProgress == null) return;
+    _currentProgress = _currentProgress!.updateCheckpoint(nextKey);
+
+    final now = DateTime.now();
+    if (_lastCheckpointSave == null ||
+        now.difference(_lastCheckpointSave!) >= const Duration(seconds: 5)) {
+      _lastCheckpointSave = now;
+      await _saveProgress();
+    }
+  }
+
   /// Atualiza múltiplos blocos de uma vez (otimização)
   Future<void> updateProgressBatch(Set<int> blockIndices) async {
     if (_currentProgress == null) return;
@@ -119,6 +135,7 @@ class SearchProgressProvider extends ChangeNotifier {
 
       _savedProgresses[_currentProgress!.keyspaceId] = _currentProgress!;
       _changesSinceSave = 0;
+      _lastCheckpointSave = DateTime.now();
     } catch (e) {
       debugPrint('Error saving progress: $e');
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/key_search_types.dart';
@@ -54,13 +56,14 @@ class KeyFinderProvider extends ChangeNotifier {
 
     // Inicializar progresso apenas para modo Sequential
     if (_config.searchMode == SearchMode.sequential) {
-      final keyspaceId =
-          '${_config.startKey.toRadixString(16)}:${_config.endKey.toRadixString(16)}';
-      await _progressProvider?.startProgress(
-        keyspaceId: keyspaceId,
+      final progress = await _progressProvider?.startProgress(
+        keyspaceId: _progressId,
         startKey: _config.startKey,
         endKey: _config.endKey,
       );
+      if (progress != null) {
+        _config = _config.copyWith(nextKey: progress.nextKey);
+      }
     }
 
     _keyFinder = KeyFinder(_config);
@@ -76,6 +79,12 @@ class KeyFinderProvider extends ChangeNotifier {
       }
     };
 
+    _keyFinder!.onCheckpoint = (nextKey) {
+      if (_config.searchMode == SearchMode.sequential) {
+        unawaited(_progressProvider?.updateCheckpoint(nextKey));
+      }
+    };
+
     _keyFinder!.onResult = (result) {
       _results.add(result);
       // Salvar no histórico
@@ -86,13 +95,13 @@ class KeyFinderProvider extends ChangeNotifier {
 
     _keyFinder!.onError = (error) {
       _errorMessage = error;
-      stopSearch(clearResults: true);
+      unawaited(stopSearch(clearResults: false));
     };
 
     _keyFinder!.onCompleted = () {
       _config = _config.copyWith(isRunning: false);
       WakelockPlus.disable();
-      _progressProvider?.stopProgress();
+      unawaited(_progressProvider?.stopProgress());
       notifyListeners();
     };
 
@@ -100,14 +109,17 @@ class KeyFinderProvider extends ChangeNotifier {
   }
 
   /// Stop the key search
-  void stopSearch({bool clearResults = true}) {
+  Future<void> stopSearch({bool clearResults = false}) async {
     _keyFinder?.stop();
     _keyFinder = null;
     _config = _config.copyWith(isRunning: false);
 
     // Desativar wakelock
-    WakelockPlus.disable();
-    _progressProvider?.stopProgress();
+    await WakelockPlus.disable();
+    if (_config.searchMode == SearchMode.sequential) {
+      await _progressProvider?.updateCheckpoint(_config.nextKey);
+      await _progressProvider?.stopProgress();
+    }
 
     // Limpar resultados e configuração quando parar (exceto se encontrou chave)
     if (clearResults) {
@@ -126,6 +138,15 @@ class KeyFinderProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  String get _progressId {
+    final targets =
+        _config.targets.map((target) => target.address).toList()..sort();
+    final owner = _config.challengeId?.toString() ?? targets.join(',');
+    return 'v2|$owner|${_config.startKey.toRadixString(16)}:'
+        '${_config.endKey.toRadixString(16)}|${_config.stride.toRadixString(16)}|'
+        '${_config.compression.index}';
   }
 
   /// Update configuration

@@ -1,5 +1,7 @@
 import 'package:bit_finder/models/search_progress.dart';
+import 'package:bit_finder/providers/search_progress_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test('markRangeTested marks every block crossed by a batch', () {
@@ -16,5 +18,26 @@ void main() {
     );
 
     expect(updated.testedBlocks, {1, 2, 3, 4});
+  });
+
+  test('exact checkpoint survives provider recreation', () async {
+    SharedPreferences.setMockInitialValues({});
+    final firstProvider = SearchProgressProvider();
+    await firstProvider.startProgress(
+      keyspaceId: 'resume-test',
+      startKey: BigInt.one,
+      endKey: BigInt.from(1000),
+    );
+    await firstProvider.updateCheckpoint(BigInt.from(321));
+    await firstProvider.stopProgress();
+
+    final secondProvider = SearchProgressProvider();
+    final restored = await secondProvider.startProgress(
+      keyspaceId: 'resume-test',
+      startKey: BigInt.one,
+      endKey: BigInt.from(1000),
+    );
+
+    expect(restored.nextKey, BigInt.from(321));
   });
 }
