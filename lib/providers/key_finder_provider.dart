@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/key_search_types.dart';
 import '../models/wallet_challenge.dart';
@@ -10,7 +12,11 @@ import 'history_provider.dart';
 import 'search_progress_provider.dart';
 import 'performance_provider.dart';
 
-class KeyFinderProvider extends ChangeNotifier {
+class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
+  static const _lastConfigKey = 'last_search_config_v1';
+
+  late final Future<void> _initialization;
+  Future<void> _pendingPersist = Future<void>.value();
   HistoryProvider? _historyProvider;
   SearchProgressProvider? _progressProvider;
   PerformanceProvider? _performanceProvider;
@@ -33,6 +39,13 @@ class KeyFinderProvider extends ChangeNotifier {
   KeySearchStatus? _currentStatus;
   final List<KeySearchResult> _results = [];
   String? _errorMessage;
+
+  KeyFinderProvider() {
+    _initialization = _restoreConfiguration();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  Future<void> get initialized => _initialization;
 
   bool get isRunning => _config.isRunning;
   KeySearchStatus? get currentStatus => _currentStatus;
@@ -63,6 +76,7 @@ class KeyFinderProvider extends ChangeNotifier {
       );
       if (progress != null) {
         _config = _config.copyWith(nextKey: progress.nextKey);
+        unawaited(_persistConfiguration());
       }
     }
 
@@ -102,6 +116,7 @@ class KeyFinderProvider extends ChangeNotifier {
       _config = _config.copyWith(isRunning: false);
       WakelockPlus.disable();
       unawaited(_progressProvider?.stopProgress());
+      unawaited(_persistConfiguration());
       notifyListeners();
     };
 
@@ -120,7 +135,6 @@ class KeyFinderProvider extends ChangeNotifier {
       await _progressProvider?.updateCheckpoint(_config.nextKey);
       await _progressProvider?.stopProgress();
     }
-
     // Limpar resultados e configuração quando parar (exceto se encontrou chave)
     if (clearResults) {
       _results.clear();
@@ -133,10 +147,12 @@ class KeyFinderProvider extends ChangeNotifier {
           radix: 16,
         ),
         challengeId: null,
+        clearChallengeId: true,
       );
       _currentStatus = null;
     }
 
+    await _persistConfiguration();
     notifyListeners();
   }
 
@@ -153,6 +169,7 @@ class KeyFinderProvider extends ChangeNotifier {
   void updateConfig(KeySearchConfig newConfig) {
     if (_config.isRunning) return;
     _config = newConfig;
+    unawaited(_persistConfiguration());
     notifyListeners();
   }
 
@@ -181,9 +198,12 @@ class KeyFinderProvider extends ChangeNotifier {
 
       final target = KeySearchTarget(address: address, hash160: hash160List);
 
-      final newTargets = List<KeySearchTarget>.from(_config.targets)
-        ..add(target);
+      final newTargets =
+          List<KeySearchTarget>.from(_config.targets)
+            ..removeWhere((existing) => existing.address == target.address)
+            ..add(target);
       _config = _config.copyWith(targets: newTargets);
+      unawaited(_persistConfiguration());
       _errorMessage = null;
       notifyListeners();
     } catch (e) {
@@ -199,6 +219,7 @@ class KeyFinderProvider extends ChangeNotifier {
     final newTargets = List<KeySearchTarget>.from(_config.targets)
       ..removeAt(index);
     _config = _config.copyWith(targets: newTargets);
+    unawaited(_persistConfiguration());
     notifyListeners();
   }
 
@@ -206,7 +227,8 @@ class KeyFinderProvider extends ChangeNotifier {
   void clearTargets() {
     if (_config.isRunning) return;
 
-    _config = _config.copyWith(targets: [], challengeId: null);
+    _config = _config.copyWith(targets: [], clearChallengeId: true);
+    unawaited(_persistConfiguration());
     notifyListeners();
   }
 
@@ -221,6 +243,7 @@ class KeyFinderProvider extends ChangeNotifier {
         nextKey: keyspace.start,
         endKey: keyspace.end,
       );
+      unawaited(_persistConfiguration());
       _errorMessage = null;
       notifyListeners();
     } catch (e) {
@@ -234,6 +257,7 @@ class KeyFinderProvider extends ChangeNotifier {
     if (_config.isRunning) return;
 
     _config = _config.copyWith(compression: mode);
+    unawaited(_persistConfiguration());
     notifyListeners();
   }
 
@@ -251,6 +275,7 @@ class KeyFinderProvider extends ChangeNotifier {
         throw const FormatException('Stride must be between 1 and n-1');
       }
       _config = _config.copyWith(stride: stride);
+      unawaited(_persistConfiguration());
       _errorMessage = null;
       notifyListeners();
     } catch (e) {
@@ -264,13 +289,63 @@ class KeyFinderProvider extends ChangeNotifier {
     if (_config.isRunning) return;
 
     _config = _config.copyWith(searchMode: mode);
+    unawaited(_persistConfiguration());
     notifyListeners();
   }
 
   /// Clear error message
   void clearError() {
     _errorMessage = null;
+    unawaited(_persistConfiguration());
     notifyListeners();
+  }
+
+  Future<void> _restoreConfiguration() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = prefs.getString(_lastConfigKey);
+      if (encoded == null) return;
+      _config = KeySearchConfig.fromJson(
+        jsonDecode(encoded) as Map<String, dynamic>,
+      ).copyWith(isRunning: false);
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Error restoring last search configuration: $error');
+    }
+  }
+
+  Future<void> _persistConfiguration() {
+    final encoded = jsonEncode(_config.toJson());
+    _pendingPersist = _pendingPersist.then((_) => _writeConfiguration(encoded));
+    return _pendingPersist;
+  }
+
+  Future<void> _writeConfiguration(String encoded) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastConfigKey, encoded);
+    } catch (error) {
+      debugPrint('Error saving last search configuration: $error');
+    }
+  }
+
+  Future<void> persistSession() async {
+    await _initialization;
+    if (_config.searchMode == SearchMode.sequential) {
+      await _progressProvider?.updateCheckpoint(_config.nextKey);
+      await _progressProvider?.saveCurrentProgress();
+    }
+    await _persistConfiguration();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(persistSession());
+    }
   }
 
   /// Clear results
@@ -305,6 +380,8 @@ class KeyFinderProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_persistConfiguration());
     _keyFinder?.dispose();
     super.dispose();
   }

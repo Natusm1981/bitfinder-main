@@ -201,6 +201,7 @@ class KeySearchConfig {
     SearchMode? searchMode,
     int? numThreads,
     int? challengeId,
+    bool clearChallengeId = false,
   }) {
     return KeySearchConfig(
       startKey: startKey ?? this.startKey,
@@ -214,7 +215,51 @@ class KeySearchConfig {
       isRunning: isRunning ?? this.isRunning,
       searchMode: searchMode ?? this.searchMode,
       numThreads: numThreads ?? this.numThreads,
-      challengeId: challengeId ?? this.challengeId,
+      challengeId: clearChallengeId ? null : challengeId ?? this.challengeId,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'startKey': startKey.toString(),
+    'nextKey': nextKey.toString(),
+    'endKey': endKey.toString(),
+    'compression': compression.index,
+    'stride': stride.toString(),
+    'targets': targets.map((target) => target.toJson()).toList(),
+    'statusInterval': statusInterval,
+    'searchMode': searchMode.index,
+    'numThreads': numThreads,
+    'challengeId': challengeId,
+  };
+
+  factory KeySearchConfig.fromJson(Map<String, dynamic> json) {
+    final compressionIndex = json['compression'] as int? ?? 0;
+    final searchModeIndex = json['searchMode'] as int? ?? 0;
+    return KeySearchConfig(
+      startKey: BigInt.parse(json['startKey'] as String),
+      nextKey: BigInt.parse(json['nextKey'] as String),
+      endKey: BigInt.parse(json['endKey'] as String),
+      compression:
+          PointCompressionType.values[compressionIndex.clamp(
+            0,
+            PointCompressionType.values.length - 1,
+          )],
+      stride: BigInt.parse(json['stride'] as String),
+      targets:
+          (json['targets'] as List<dynamic>? ?? const [])
+              .map(
+                (target) =>
+                    KeySearchTarget.fromJson(target as Map<String, dynamic>),
+              )
+              .toList(),
+      statusInterval: json['statusInterval'] as int? ?? 1000,
+      searchMode:
+          SearchMode.values[searchModeIndex.clamp(
+            0,
+            SearchMode.values.length - 1,
+          )],
+      numThreads: json['numThreads'] as int? ?? 1,
+      challengeId: json['challengeId'] as int?,
     );
   }
 }

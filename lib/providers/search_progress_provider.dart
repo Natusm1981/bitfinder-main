@@ -150,6 +150,8 @@ class SearchProgressProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> saveCurrentProgress() => _saveProgress();
+
   /// Limpa o progresso de um keyspace específico
   Future<void> clearProgress(String keyspaceId) async {
     try {

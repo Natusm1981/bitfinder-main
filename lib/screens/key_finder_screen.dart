@@ -34,6 +34,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
   late final Future<WalletChallengeCollection> _challengesFuture;
   Timer? _statusUpdateTimer;
   WalletChallenge? _selectedChallenge;
+  String? _lastSyncedConfig;
 
   @override
   void initState() {
@@ -42,7 +43,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
     _challengesFuture = ChallengeLoader.loadChallenges();
 
     // Listener para detectar quando chaves são encontradas
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = Provider.of<KeyFinderProvider>(context, listen: false);
       final historyProvider = Provider.of<HistoryProvider>(
         context,
@@ -60,7 +61,54 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
       provider.setProgressProvider(progressProvider);
       provider.setPerformanceProvider(performanceProvider);
       provider.addListener(_checkForResults);
+      provider.addListener(_syncConfigurationFields);
+      await provider.initialized;
+      if (mounted) _syncConfigurationFields();
     });
+  }
+
+  void _syncConfigurationFields() {
+    if (!mounted) return;
+    final provider = Provider.of<KeyFinderProvider>(context, listen: false);
+    if (provider.isRunning) return;
+    final config = provider.config;
+    final signature =
+        '${config.startKey}:${config.endKey}:${config.stride}:'
+        '${config.compression.index}:${config.searchMode.index}:'
+        '${config.challengeId}:${config.targets.map((target) => target.address).join(',')}';
+    if (_lastSyncedConfig == signature) return;
+    _lastSyncedConfig = signature;
+
+    _keyspaceController.text =
+        '${config.startKey.toRadixString(16)}:${config.endKey.toRadixString(16)}';
+    _strideController.text = config.stride.toRadixString(16);
+    _addressController.text =
+        config.targets.isEmpty ? '' : config.targets.first.address;
+
+    final challengeId = config.challengeId;
+    if (challengeId == null) {
+      if (_selectedChallenge != null) {
+        setState(() => _selectedChallenge = null);
+      }
+    } else if (_selectedChallenge?.id != challengeId) {
+      unawaited(_restoreSelectedChallenge(challengeId));
+    }
+  }
+
+  Future<void> _restoreSelectedChallenge(int challengeId) async {
+    final collection = await _challengesFuture;
+    WalletChallenge? challenge;
+    for (final candidate in collection.challenges) {
+      if (candidate.id == challengeId) {
+        challenge = candidate;
+        break;
+      }
+    }
+    if (!mounted) return;
+    final provider = Provider.of<KeyFinderProvider>(context, listen: false);
+    if (provider.config.challengeId == challengeId) {
+      setState(() => _selectedChallenge = challenge);
+    }
   }
 
   void _checkSearchRunning() {
@@ -90,6 +138,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
   void dispose() {
     final provider = Provider.of<KeyFinderProvider>(context, listen: false);
     provider.removeListener(_checkForResults);
+    provider.removeListener(_syncConfigurationFields);
     provider.removeListener(_checkSearchRunning);
     _statusUpdateTimer?.cancel();
     _addressController.dispose();
@@ -417,6 +466,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                   provider.loadChallenge(challenge);
                   // Atualizar o campo de texto do keyspace
                   _keyspaceController.text = challenge.keyspace;
+                  _addressController.text = challenge.btcAddress;
                   setState(() {
                     _selectedChallenge = challenge;
                   });
@@ -573,7 +623,6 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                           : () {
                             if (_addressController.text.isNotEmpty) {
                               provider.addTarget(_addressController.text);
-                              _addressController.clear();
                             }
                           },
                 ),
@@ -682,6 +731,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<PointCompressionType>(
+              key: ValueKey(provider.config.compression),
               initialValue: provider.config.compression,
               decoration: InputDecoration(
                 labelText: AppLocalizations.of(context).compression,
@@ -712,6 +762,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<SearchMode>(
+              key: ValueKey(provider.config.searchMode),
               initialValue: provider.config.searchMode,
               decoration: InputDecoration(
                 labelText: AppLocalizations.of(context).searchMode,
@@ -1235,19 +1286,12 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                       _isVibrating = false;
                     });
                     // Limpar campos de texto para novo desafio
-                    _addressController.clear();
-                    _keyspaceController.clear();
-                    _strideController.text = '1';
-                    setState(() {
-                      _selectedChallenge = null;
-                    });
                     // Limpar resultados e configuração do provider
                     final provider = Provider.of<KeyFinderProvider>(
                       context,
                       listen: false,
                     );
                     provider.clearResults();
-                    provider.clearTargets();
                     Navigator.pop(context);
                   },
                   icon: const Icon(Icons.check),
