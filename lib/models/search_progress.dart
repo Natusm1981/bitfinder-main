@@ -70,7 +70,7 @@ class SearchProgress {
 
   SearchProgress updateCheckpoint(BigInt value) {
     final bounded = value < startKey ? startKey : value;
-    if (bounded == nextKey) return this;
+    if (bounded <= nextKey) return this;
     return copyWith(nextKey: bounded, lastUpdated: DateTime.now());
   }
 

@@ -1,6 +1,7 @@
 package br.net.mantovani.bitfinder
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
 import io.flutter.embedding.android.FlutterActivity
@@ -58,6 +59,36 @@ class MainActivity : FlutterActivity() {
                                 result.error("NATIVE_ERROR", error.message, null)
                             }
                         }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "background_search"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    try {
+                        val intent = Intent(this, BackgroundSearchService::class.java)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+                        result.success(null)
+                    } catch (error: Throwable) {
+                        result.error("SERVICE_START_FAILED", error.message, null)
+                    }
+                }
+                "stop" -> {
+                    try {
+                        stopService(Intent(this, BackgroundSearchService::class.java))
+                        result.success(null)
+                    } catch (error: Throwable) {
+                        result.error("SERVICE_STOP_FAILED", error.message, null)
                     }
                 }
                 else -> result.notImplemented()

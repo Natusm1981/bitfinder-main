@@ -583,6 +583,8 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
   }
 
   Widget _buildTargetsSection(KeyFinderProvider provider) {
+    final challengeId = provider.config.challengeId;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -593,9 +595,30 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
               children: [
                 const Icon(Icons.location_on, color: Colors.orange),
                 const SizedBox(width: 8),
-                Text(
-                  AppLocalizations.of(context).targetAddress,
-                  style: Theme.of(context).textTheme.titleLarge,
+                Flexible(
+                  child: RichText(
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: Theme.of(context).textTheme.titleLarge,
+                      children: [
+                        TextSpan(
+                          text: AppLocalizations.of(context).targetAddress,
+                        ),
+                        if (challengeId != null)
+                          TextSpan(
+                            text:
+                                '  ${AppLocalizations.of(context).challenge} #$challengeId',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(
+                              color:
+                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

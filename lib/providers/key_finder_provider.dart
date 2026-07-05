@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/key_search_types.dart';
 import '../models/wallet_challenge.dart';
+import '../services/background_search_service.dart';
 import '../services/key_finder.dart';
 import '../utils/address_util.dart';
 import 'history_provider.dart';
@@ -52,10 +53,15 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   List<KeySearchResult> get results => List.unmodifiable(_results);
   String? get errorMessage => _errorMessage;
   KeySearchConfig get config => _config;
+  bool get canStartSearch =>
+      _config.targets.isNotEmpty &&
+      _config.startKey <= _config.endKey &&
+      _config.nextKey <= _config.endKey &&
+      _config.stride > BigInt.zero;
 
   /// Start the key search
   Future<void> startSearch() async {
-    if (_config.isRunning) return;
+    if (_config.isRunning || !canStartSearch) return;
 
     _errorMessage = null;
 
@@ -125,12 +131,16 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Stop the key search
   Future<void> stopSearch({bool clearResults = false}) async {
-    _keyFinder?.stop();
+    final finder = _keyFinder;
+    if (finder != null) {
+      await finder.stop();
+    }
     _keyFinder = null;
     _config = _config.copyWith(isRunning: false);
 
     // Desativar wakelock
     await WakelockPlus.disable();
+    await BackgroundSearchService.stop();
     if (_config.searchMode == SearchMode.sequential) {
       await _progressProvider?.updateCheckpoint(_config.nextKey);
       await _progressProvider?.stopProgress();
@@ -346,6 +356,24 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       unawaited(persistSession());
     }
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      unawaited(_activateBackgroundSearch());
+    } else if (state == AppLifecycleState.resumed) {
+      unawaited(BackgroundSearchService.stop());
+    }
+  }
+
+  Future<void> _activateBackgroundSearch() async {
+    await _initialization;
+    if (!_config.isRunning && canStartSearch) {
+      await startSearch();
+    }
+    if (_config.isRunning) {
+      await WakelockPlus.enable();
+      await BackgroundSearchService.start();
+    }
   }
 
   /// Clear results
@@ -381,7 +409,8 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_persistConfiguration());
+    unawaited(persistSession());
+    unawaited(BackgroundSearchService.stop());
     _keyFinder?.dispose();
     super.dispose();
   }

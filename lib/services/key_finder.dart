@@ -34,6 +34,9 @@ class KeyFinder {
   final Map<int, BigInt> _completedBatchEnds = {};
   List<Uint8List> _nativeTargetHashes = const [];
   int _activeNativeWorkers = 1;
+  int _activeNativeBatches = 0;
+  bool _stopRequested = false;
+  Completer<void>? _stopCompleter;
 
   void Function(KeySearchResult)? onResult;
   void Function(KeySearchStatus)? onStatus;
@@ -63,6 +66,9 @@ class KeyFinder {
     _nextBatchId = 0;
     _contiguousBatchId = 0;
     _completedBatchEnds.clear();
+    _activeNativeBatches = 0;
+    _stopRequested = false;
+    _stopCompleter = null;
     _nativeTargetHashes = config.targets
         .map((target) => AddressUtil.addressToHash160(target.address))
         .toList(growable: false);
@@ -92,25 +98,61 @@ class KeyFinder {
     }
   }
 
-  void stop() {
+  Future<void> stop({bool graceful = true}) async {
     if (!_isRunning && _searchIsolates.isEmpty) return;
+
+    if (graceful &&
+        NativeCryptoBinding.isAvailable &&
+        _searchIsolates.isEmpty &&
+        _activeNativeBatches > 0) {
+      _stopRequested = true;
+      _statusTimer?.cancel();
+      _statusTimer = null;
+      _thermalTimer?.cancel();
+      _thermalTimer = null;
+      _stopCompleter ??= Completer<void>();
+      return _stopCompleter!.future;
+    }
+
+    _finishStop(killIsolates: true);
+  }
+
+  void _finishStop({required bool killIsolates}) {
+    if (!_isRunning && _searchIsolates.isEmpty) {
+      _completeStopRequest();
+      return;
+    }
     _isRunning = false;
+    _stopRequested = false;
     _runId++;
     _statusTimer?.cancel();
     _statusTimer = null;
     _thermalTimer?.cancel();
     _thermalTimer = null;
-    for (final isolate in _searchIsolates) {
-      isolate.kill(priority: Isolate.immediate);
+    if (killIsolates) {
+      for (final isolate in _searchIsolates) {
+        isolate.kill(priority: Isolate.immediate);
+      }
+      _searchIsolates.clear();
+      _receivePort?.close();
+      _receivePort = null;
     }
-    _searchIsolates.clear();
-    _receivePort?.close();
-    _receivePort = null;
+    _completeStopRequest();
+  }
+
+  void _completeStopRequest() {
+    final completer = _stopCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+    _stopCompleter = null;
   }
 
   Future<void> _runNativeWorker(int workerId, int runId) async {
+    var batchInFlight = false;
     try {
       while (_isRunning && runId == _runId) {
+        if (_stopRequested) break;
         if (workerId >= _activeNativeWorkers) {
           await Future<void>.delayed(const Duration(milliseconds: 500));
           continue;
@@ -118,6 +160,8 @@ class KeyFinder {
         final batch = _allocateNativeBatch();
         if (batch == null) break;
 
+        _activeNativeBatches++;
+        batchInFlight = true;
         final result = await NativeCryptoBinding.searchBatch(
           startKey: batch.startKey,
           count: batch.count,
@@ -125,7 +169,10 @@ class KeyFinder {
           compressionMode: config.compression.index,
           targetHashes: _nativeTargetHashes,
         );
-        if (!_isRunning || runId != _runId) return;
+        _activeNativeBatches--;
+        batchInFlight = false;
+        if (runId != _runId) return;
+        if (!_isRunning && !_stopRequested) return;
 
         _keysChecked += BigInt.from(result.checked);
         _threadKeysChecked[workerId] =
@@ -148,14 +195,19 @@ class KeyFinder {
         }
 
         if (result.foundKey != null && result.foundCompressed != null) {
-          stop();
+          unawaited(stop(graceful: false));
           onResult?.call(
             _buildResult(result.foundKey!, result.foundCompressed!),
           );
           return;
         }
+
+        if (_stopRequested) break;
       }
     } catch (error) {
+      if (batchInFlight && _activeNativeBatches > 0) {
+        _activeNativeBatches--;
+      }
       if (_isRunning && runId == _runId) {
         _fail('Native search failed: $error');
       }
@@ -163,6 +215,14 @@ class KeyFinder {
     }
 
     if (_isRunning && runId == _runId) {
+      if (_stopRequested) {
+        _completedWorkers++;
+        if (_activeNativeBatches == 0) {
+          _reportStatus();
+          _finishStop(killIsolates: false);
+        }
+        return;
+      }
       _completedWorkers++;
       if (_completedWorkers == config.numThreads) {
         _finish();
@@ -270,7 +330,7 @@ class KeyFinder {
 
   void _handleDartMessage(dynamic message) {
     if (message is KeySearchResult) {
-      stop();
+      unawaited(stop(graceful: false));
       onResult?.call(message);
       return;
     }
@@ -446,17 +506,19 @@ class KeyFinder {
   void _finish() {
     if (!_isRunning) return;
     _reportStatus();
-    stop();
+    unawaited(stop(graceful: false));
     onCompleted?.call();
   }
 
   void _fail(String message) {
     if (!_isRunning) return;
-    stop();
+    unawaited(stop(graceful: false));
     onError?.call(message);
   }
 
-  void dispose() => stop();
+  void dispose() {
+    unawaited(stop(graceful: false));
+  }
 
   static BigInt _generateRandomBatchStart(
     BigInt start,

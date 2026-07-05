@@ -40,4 +40,18 @@ void main() {
 
     expect(restored.nextKey, BigInt.from(321));
   });
+
+  test('checkpoint never moves backwards', () {
+    final progress = SearchProgress(
+      keyspaceId: 'monotonic',
+      startKey: BigInt.one,
+      endKey: BigInt.from(1000),
+      nextKey: BigInt.from(321),
+      totalBlocks: 10,
+    );
+
+    final updated = progress.updateCheckpoint(BigInt.from(200));
+
+    expect(updated.nextKey, BigInt.from(321));
+  });
 }
