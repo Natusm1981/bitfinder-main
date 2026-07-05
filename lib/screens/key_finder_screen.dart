@@ -189,6 +189,12 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
           // ],
         ),
         drawer: _buildDrawer(context),
+        floatingActionButton: Consumer<KeyFinderProvider>(
+          builder:
+              (context, provider, child) =>
+                  _buildSearchFloatingActionButton(provider),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: Column(
           children: [
             // Espaço reservado para banner ad
@@ -204,21 +210,17 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                   // Se está rodando, mostra apenas o status
                   if (provider.isRunning) {
                     return SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildControlsSection(provider),
-                          const SizedBox(height: 24),
-                          _buildStatusSection(provider),
-                        ],
+                        children: [_buildStatusSection(provider)],
                       ),
                     );
                   }
 
                   // Se não está rodando, mostra tudo
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -303,6 +305,26 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSearchFloatingActionButton(KeyFinderProvider provider) {
+    final isRunning = provider.isRunning;
+    final canStart = provider.canStartSearch;
+    return FloatingActionButton.extended(
+      heroTag: 'search-action',
+      onPressed:
+          isRunning
+              ? () => provider.stopSearch()
+              : (canStart ? () => provider.startSearch() : null),
+      icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
+      label: Text(
+        isRunning
+            ? AppLocalizations.of(context).stop
+            : AppLocalizations.of(context).startSearch,
+      ),
+      backgroundColor: isRunning ? Colors.red : null,
+      foregroundColor: isRunning ? Colors.white : null,
     );
   }
 
@@ -912,38 +934,6 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                   ],
                 ),
               ),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed:
-                        provider.isRunning
-                            ? null
-                            : (provider.config.targets.isEmpty
-                                ? null
-                                : () => provider.startSearch()),
-                    icon: const Icon(Icons.play_arrow),
-                    label: Text(AppLocalizations.of(context).startSearch),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed:
-                        provider.isRunning ? () => provider.stopSearch() : null,
-                    icon: const Icon(Icons.stop),
-                    label: Text(AppLocalizations.of(context).stop),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                      backgroundColor: Colors.red,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
