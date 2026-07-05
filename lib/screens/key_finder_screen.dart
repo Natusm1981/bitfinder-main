@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:bit_finder/widgets/propagandas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1002,6 +1003,13 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                     AppLocalizations.of(context).elapsed,
                     status.timeFormatted,
                   ),
+                  _buildStatusRow('Temperatura', status.temperatureFormatted),
+                  _buildStatusRow(
+                    'Estado termico',
+                    status.thermalStatusFormatted,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTemperatureChart(provider.temperatureHistory),
                 ],
               ],
             ),
@@ -1025,6 +1033,61 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildTemperatureChart(List<TemperatureSample> samples) {
+    return Container(
+      height: 150,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(
+          90,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.thermostat, size: 18, color: Colors.deepOrange),
+              const SizedBox(width: 6),
+              Text(
+                'Monitor de temperatura',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const Spacer(),
+              if (samples.isNotEmpty)
+                Text(
+                  '${samples.last.celsius.toStringAsFixed(1)} °C',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepOrange,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child:
+                samples.length < 2
+                    ? Center(
+                      child: Text(
+                        'Coletando leituras...',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    )
+                    : RepaintBoundary(
+                      child: CustomPaint(
+                        painter: _TemperatureChartPainter(samples),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1473,4 +1536,107 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
       ),
     );
   }
+}
+
+class _TemperatureChartPainter extends CustomPainter {
+  final List<TemperatureSample> samples;
+
+  _TemperatureChartPainter(this.samples);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (samples.length < 2 || size.width <= 0 || size.height <= 0) return;
+
+    final values = samples.map((sample) => sample.celsius).toList();
+    final minValue = values.reduce(math.min);
+    final maxValue = values.reduce(math.max);
+    final lowerBound = math.max(0.0, minValue - 2.0);
+    final upperBound = maxValue + 2.0;
+    final range = math.max(1.0, upperBound - lowerBound);
+
+    final gridPaint =
+        Paint()
+          ..color = Colors.grey.withAlpha(70)
+          ..strokeWidth = 1;
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.right,
+    );
+
+    const labelWidth = 42.0;
+    final chartRect = Rect.fromLTWH(
+      labelWidth,
+      0,
+      size.width - labelWidth,
+      size.height - 14,
+    );
+
+    for (var i = 0; i <= 2; i++) {
+      final y = chartRect.top + chartRect.height * i / 2;
+      canvas.drawLine(
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+      final label = upperBound - range * i / 2;
+      textPainter.text = TextSpan(
+        text: label.toStringAsFixed(0),
+        style: const TextStyle(color: Colors.grey, fontSize: 10),
+      );
+      textPainter.layout(minWidth: 0, maxWidth: labelWidth - 6);
+      textPainter.paint(
+        canvas,
+        Offset(labelWidth - textPainter.width - 6, y - 6),
+      );
+    }
+
+    final linePaint =
+        Paint()
+          ..color = Colors.deepOrange
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+    final fillPaint =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.deepOrange.withAlpha(80),
+              Colors.deepOrange.withAlpha(0),
+            ],
+          ).createShader(chartRect);
+
+    Offset pointFor(int index, double value) {
+      final x =
+          chartRect.left + chartRect.width * index / (samples.length - 1);
+      final normalized = (value - lowerBound) / range;
+      final y = chartRect.bottom - chartRect.height * normalized;
+      return Offset(x, y.clamp(chartRect.top, chartRect.bottom));
+    }
+
+    final path = Path();
+    final fillPath = Path();
+    for (var i = 0; i < samples.length; i++) {
+      final point = pointFor(i, samples[i].celsius);
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+        fillPath.moveTo(point.dx, chartRect.bottom);
+        fillPath.lineTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+        fillPath.lineTo(point.dx, point.dy);
+      }
+    }
+    fillPath.lineTo(chartRect.right, chartRect.bottom);
+    fillPath.close();
+
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TemperatureChartPainter oldDelegate) =>
+      oldDelegate.samples != samples;
 }

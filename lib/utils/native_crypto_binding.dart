@@ -14,6 +14,16 @@ class NativeSearchBatchResult {
   });
 }
 
+class NativeThermalInfo {
+  final int thermalStatus;
+  final double? batteryTemperatureCelsius;
+
+  const NativeThermalInfo({
+    required this.thermalStatus,
+    required this.batteryTemperatureCelsius,
+  });
+}
+
 /// Thin, typed contract for the Android libsecp256k1 engine.
 class NativeCryptoBinding {
   static const MethodChannel _channel = MethodChannel('native_crypto');
@@ -68,8 +78,38 @@ class NativeCryptoBinding {
   }
 
   static Future<int> getThermalStatus() async {
-    if (!_isAvailable) return 0;
-    return await _channel.invokeMethod<int>('getThermalStatus') ?? 0;
+    final info = await getThermalInfo();
+    return info.thermalStatus;
+  }
+
+  static Future<NativeThermalInfo> getThermalInfo() async {
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'getThermalInfo',
+      );
+      if (raw == null) {
+        return const NativeThermalInfo(
+          thermalStatus: 0,
+          batteryTemperatureCelsius: null,
+        );
+      }
+      final temperature = raw['batteryTemperatureCelsius'];
+      return NativeThermalInfo(
+        thermalStatus: raw['thermalStatus'] as int? ?? 0,
+        batteryTemperatureCelsius:
+            temperature is num ? temperature.toDouble() : null,
+      );
+    } on PlatformException {
+      return const NativeThermalInfo(
+        thermalStatus: 0,
+        batteryTemperatureCelsius: null,
+      );
+    } on MissingPluginException {
+      return const NativeThermalInfo(
+        thermalStatus: 0,
+        batteryTemperatureCelsius: null,
+      );
+    }
   }
 
   static Uint8List bigIntToBytes(BigInt number, {int length = 32}) {

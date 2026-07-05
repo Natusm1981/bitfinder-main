@@ -2,6 +2,8 @@ package br.net.mantovani.bitfinder
 
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import io.flutter.embedding.android.FlutterActivity
@@ -30,6 +32,34 @@ class MainActivity : FlutterActivity() {
                         PowerManager.THERMAL_STATUS_NONE
                     }
                     result.success(status)
+                }
+                "getThermalInfo" -> {
+                    val status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val powerManager =
+                            getSystemService(Context.POWER_SERVICE) as PowerManager
+                        powerManager.currentThermalStatus
+                    } else {
+                        PowerManager.THERMAL_STATUS_NONE
+                    }
+                    val batteryIntent = registerReceiver(
+                        null,
+                        IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+                    )
+                    val rawTemperature = batteryIntent?.getIntExtra(
+                        BatteryManager.EXTRA_TEMPERATURE,
+                        Int.MIN_VALUE
+                    ) ?: Int.MIN_VALUE
+                    val temperatureCelsius = if (rawTemperature == Int.MIN_VALUE) {
+                        null
+                    } else {
+                        rawTemperature / 10.0
+                    }
+                    result.success(
+                        mapOf(
+                            "thermalStatus" to status,
+                            "batteryTemperatureCelsius" to temperatureCelsius
+                        )
+                    )
                 }
                 "searchBatch" -> {
                     val startKey = call.argument<ByteArray>("startKey")

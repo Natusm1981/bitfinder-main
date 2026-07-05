@@ -42,6 +42,8 @@ class KeySearchStatus {
   final String deviceName;
   final int targets;
   final BigInt nextKey;
+  final double? batteryTemperatureCelsius;
+  final int thermalStatus;
   final DateTime timestamp;
 
   KeySearchStatus({
@@ -51,8 +53,34 @@ class KeySearchStatus {
     required this.deviceName,
     required this.targets,
     required this.nextKey,
+    this.batteryTemperatureCelsius,
+    this.thermalStatus = 0,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+
+  String get temperatureFormatted =>
+      batteryTemperatureCelsius == null
+          ? 'Indisponivel'
+          : '${batteryTemperatureCelsius!.toStringAsFixed(1)} °C';
+
+  String get thermalStatusFormatted {
+    switch (thermalStatus) {
+      case 1:
+        return 'Leve';
+      case 2:
+        return 'Moderado';
+      case 3:
+        return 'Severo';
+      case 4:
+        return 'Critico';
+      case 5:
+        return 'Emergencia';
+      case 6:
+        return 'Desligamento';
+      default:
+        return 'Normal';
+    }
+  }
 
   String get speedFormatted {
     // speed está em milhões (MKey/s), então multiplicamos por 1.000.000
@@ -89,6 +117,13 @@ class KeySearchStatus {
 
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
+}
+
+class TemperatureSample {
+  final double celsius;
+  final DateTime timestamp;
+
+  const TemperatureSample({required this.celsius, required this.timestamp});
 }
 
 /// Result when a matching key is found

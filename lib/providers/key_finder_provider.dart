@@ -38,6 +38,7 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   KeyFinder? _keyFinder;
 
   KeySearchStatus? _currentStatus;
+  final List<TemperatureSample> _temperatureHistory = [];
   final List<KeySearchResult> _results = [];
   String? _errorMessage;
 
@@ -50,6 +51,8 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   bool get isRunning => _config.isRunning;
   KeySearchStatus? get currentStatus => _currentStatus;
+  List<TemperatureSample> get temperatureHistory =>
+      List.unmodifiable(_temperatureHistory);
   List<KeySearchResult> get results => List.unmodifiable(_results);
   String? get errorMessage => _errorMessage;
   KeySearchConfig get config => _config;
@@ -90,6 +93,21 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
 
     _keyFinder!.onStatus = (status) {
       _currentStatus = status;
+      final temperature = status.batteryTemperatureCelsius;
+      if (temperature != null) {
+        _temperatureHistory.add(
+          TemperatureSample(
+            celsius: temperature,
+            timestamp: status.timestamp,
+          ),
+        );
+        if (_temperatureHistory.length > 120) {
+          _temperatureHistory.removeRange(
+            0,
+            _temperatureHistory.length - 120,
+          );
+        }
+      }
       notifyListeners();
     };
 
@@ -137,6 +155,7 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     _keyFinder = null;
     _config = _config.copyWith(isRunning: false);
+    _temperatureHistory.clear();
 
     // Desativar wakelock
     await WakelockPlus.disable();

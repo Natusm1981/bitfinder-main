@@ -27,6 +27,8 @@ class KeyFinder {
   final Map<int, BigInt> _threadNextKeys = {};
   int _completedWorkers = 0;
   int _runId = 0;
+  double? _batteryTemperatureCelsius;
+  int _thermalStatus = 0;
 
   BigInt _nextSequenceIndex = BigInt.zero;
   int _nextBatchId = 0;
@@ -62,6 +64,8 @@ class KeyFinder {
     _threadKeysChecked.clear();
     _threadNextKeys.clear();
     _completedWorkers = 0;
+    _batteryTemperatureCelsius = null;
+    _thermalStatus = 0;
     _nextSequenceIndex = _initialSequenceIndex();
     _nextBatchId = 0;
     _contiguousBatchId = 0;
@@ -81,12 +85,14 @@ class KeyFinder {
     );
 
     try {
+      unawaited(_refreshThermalLimit());
+      _thermalTimer = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => unawaited(_refreshThermalLimit()),
+      );
+
       if (NativeCryptoBinding.isAvailable) {
         final runId = _runId;
-        _thermalTimer = Timer.periodic(
-          const Duration(seconds: 5),
-          (_) => unawaited(_refreshThermalLimit()),
-        );
         for (var workerId = 0; workerId < config.numThreads; workerId++) {
           unawaited(_runNativeWorker(workerId, runId));
         }
@@ -458,6 +464,8 @@ class KeyFinder {
         deviceName: _deviceName,
         targets: config.targets.length,
         nextKey: config.nextKey,
+        batteryTemperatureCelsius: _batteryTemperatureCelsius,
+        thermalStatus: _thermalStatus,
       ),
     );
   }
@@ -478,17 +486,21 @@ class KeyFinder {
         deviceName: _deviceName,
         targets: config.targets.length,
         nextKey: config.nextKey,
+        batteryTemperatureCelsius: _batteryTemperatureCelsius,
+        thermalStatus: _thermalStatus,
       ),
     );
   }
 
   Future<void> _refreshThermalLimit() async {
-    if (!_isRunning || !NativeCryptoBinding.isAvailable) return;
+    if (!_isRunning) return;
     try {
-      final thermalStatus = await NativeCryptoBinding.getThermalStatus();
-      if (thermalStatus >= 4) {
+      final thermalInfo = await NativeCryptoBinding.getThermalInfo();
+      _thermalStatus = thermalInfo.thermalStatus;
+      _batteryTemperatureCelsius = thermalInfo.batteryTemperatureCelsius;
+      if (_thermalStatus >= 4) {
         _activeNativeWorkers = 1;
-      } else if (thermalStatus >= 3) {
+      } else if (_thermalStatus >= 3) {
         _activeNativeWorkers = max(1, config.numThreads ~/ 2);
       } else {
         _activeNativeWorkers = config.numThreads;
