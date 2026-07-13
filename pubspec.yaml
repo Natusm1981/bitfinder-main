@@ -1,7 +1,7 @@
 name: bit_finder
 description: "Bit Finder - A replica of BitCrack KeyFinder for Bitcoin private key challenge searching"
 publish_to: 'none'
-version: 1.4.0+12
+version: 1.4.1+14
 
 environment:
   sdk: ^3.7.2

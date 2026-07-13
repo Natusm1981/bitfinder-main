@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/search_progress.dart';
 
 class SearchProgressProvider extends ChangeNotifier {
+  static const _checkpointSaveInterval = Duration(seconds: 30);
+
   late final Future<void> _loadFuture;
   SearchProgress? _currentProgress;
   final Map<String, SearchProgress> _savedProgresses = {};
@@ -109,7 +111,7 @@ class SearchProgressProvider extends ChangeNotifier {
 
     final now = DateTime.now();
     if (_lastCheckpointSave == null ||
-        now.difference(_lastCheckpointSave!) >= const Duration(seconds: 5)) {
+        now.difference(_lastCheckpointSave!) >= _checkpointSaveInterval) {
       _lastCheckpointSave = now;
       await _saveProgress();
     }

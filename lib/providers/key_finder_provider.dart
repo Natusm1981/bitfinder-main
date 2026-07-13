@@ -15,9 +15,11 @@ import 'performance_provider.dart';
 
 class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const _lastConfigKey = 'last_search_config_v1';
+  static const _checkpointPersistInterval = Duration(seconds: 30);
 
   late final Future<void> _initialization;
   Future<void> _pendingPersist = Future<void>.value();
+  DateTime? _lastCheckpointPersist;
   HistoryProvider? _historyProvider;
   SearchProgressProvider? _progressProvider;
   PerformanceProvider? _performanceProvider;
@@ -119,7 +121,8 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
 
     _keyFinder!.onCheckpoint = (nextKey) {
       if (_config.searchMode == SearchMode.sequential) {
-        unawaited(_progressProvider?.updateCheckpoint(nextKey));
+        _config.nextKey = nextKey;
+        unawaited(_saveCheckpointSnapshot(nextKey));
       }
     };
 
@@ -364,6 +367,17 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
       await _progressProvider?.updateCheckpoint(_config.nextKey);
       await _progressProvider?.saveCurrentProgress();
     }
+    await _persistConfiguration();
+  }
+
+  Future<void> _saveCheckpointSnapshot(BigInt nextKey) async {
+    await _progressProvider?.updateCheckpoint(nextKey);
+    final now = DateTime.now();
+    if (_lastCheckpointPersist != null &&
+        now.difference(_lastCheckpointPersist!) < _checkpointPersistInterval) {
+      return;
+    }
+    _lastCheckpointPersist = now;
     await _persistConfiguration();
   }
 

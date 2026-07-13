@@ -38,6 +38,7 @@ class _BitFinderAppState extends State<BitFinderApp>
     with WidgetsBindingObserver {
   final AppOpenAdService _appOpenAdService = AppOpenAdService();
   bool _initialAdRequested = false;
+  DateTime? _backgroundEnteredAt;
 
   @override
   void initState() {
@@ -47,8 +48,22 @@ class _BitFinderAppState extends State<BitFinderApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _backgroundEnteredAt ??= DateTime.now();
+      return;
+    }
+
     if (state == AppLifecycleState.resumed && _initialAdRequested) {
-      unawaited(_appOpenAdService.showIfEligible());
+      final backgroundEnteredAt = _backgroundEnteredAt;
+      _backgroundEnteredAt = null;
+      if (backgroundEnteredAt == null) return;
+
+      unawaited(
+        _appOpenAdService.showAfterBackgroundIfEligible(
+          DateTime.now().difference(backgroundEnteredAt),
+        ),
+      );
     }
   }
 
