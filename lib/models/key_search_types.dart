@@ -58,30 +58,6 @@ class KeySearchStatus {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
-  String get temperatureFormatted =>
-      batteryTemperatureCelsius == null
-          ? 'Indisponivel'
-          : '${batteryTemperatureCelsius!.toStringAsFixed(1)} °C';
-
-  String get thermalStatusFormatted {
-    switch (thermalStatus) {
-      case 1:
-        return 'Leve';
-      case 2:
-        return 'Moderado';
-      case 3:
-        return 'Severo';
-      case 4:
-        return 'Critico';
-      case 5:
-        return 'Emergencia';
-      case 6:
-        return 'Desligamento';
-      default:
-        return 'Normal';
-    }
-  }
-
   String get speedFormatted {
     // speed está em milhões (MKey/s), então multiplicamos por 1.000.000
     final keysPerSecond = speed * 1000000;

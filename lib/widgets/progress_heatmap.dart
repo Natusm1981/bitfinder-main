@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/search_progress.dart';
 
 /// Widget que renderiza o mapa de progresso visual (grid de pixels)
@@ -36,58 +38,10 @@ class ProgressHeatmap extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        //   // Informações de progresso
-        //   Padding(
-        //     padding: const EdgeInsets.only(bottom: 12),
-        //     child: Row(
-        //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        //       // crossAxisAlignment: CrossAxisAlignment.center,
-        //       children: [
-        //         Center(
-        //           child: Column(
-        //             crossAxisAlignment: CrossAxisAlignment.center,
-        //             // mainAxisAlignment: MainAxisAlignment.center,
-        //             children: [
-        //               // Text(
-        //               //   'Keyspace: ${progress!.keyspaceId}',
-        //               //   style: const TextStyle(
-        //               //     fontWeight: FontWeight.bold,
-        //               //     fontSize: 12,
-        //               //   ),
-        //               // ),
-        //               // const SizedBox(height: 4),
-        //               // Text(
-        //               //   '${progress!.testedBlocks.length} / ${progress!.totalBlocks} blocos',
-        //               //   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-        //               // ),
-        //               Container(
-        //                 padding: const EdgeInsets.symmetric(
-        //                   horizontal: 12,
-        //                   vertical: 6,
-        //                 ),
-        //                 decoration: const BoxDecoration(color: Colors.blue),
-        //                 child: Text(
-        //                   '${progress!.progressPercentage.toStringAsFixed(2)}%',
-        //                   style: const TextStyle(
-        //                     color: Colors.white,
-        //                     fontWeight: FontWeight.bold,
-        //                     fontSize: 14,
-        //                   ),
-        //                 ),
-        //               ),
-        //             ],
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //   ),
-
-        // Grid de progresso com legenda ao lado
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Grid
             Container(
               width: size,
               height: size,
@@ -104,17 +58,20 @@ class ProgressHeatmap extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(width: 16),
-
-            // Legenda ao lado
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildLegendItem(Colors.green, 'Não testado'),
+                _buildLegendItem(
+                  Colors.green,
+                  AppLocalizations.of(context).untested,
+                ),
                 const SizedBox(height: 12),
-                _buildLegendItem(Colors.red, 'Testado'),
+                _buildLegendItem(
+                  Colors.red,
+                  AppLocalizations.of(context).tested,
+                ),
               ],
             ),
           ],
@@ -142,7 +99,6 @@ class ProgressHeatmap extends StatelessWidget {
   }
 }
 
-/// Painter customizado para renderizar o heatmap
 class _HeatmapPainter extends CustomPainter {
   final SearchProgress progress;
   final int gridSize;

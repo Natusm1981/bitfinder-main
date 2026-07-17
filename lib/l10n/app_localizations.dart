@@ -91,6 +91,28 @@ class AppLocalizations {
   String get sequential =>
       _localizedValues[locale.languageCode]!['sequential']!;
   String get random => _localizedValues[locale.languageCode]!['random']!;
+  String get temperature =>
+      _localizedValues[locale.languageCode]!['temperature']!;
+  String get thermalState =>
+      _localizedValues[locale.languageCode]!['thermal_state']!;
+  String get temperatureMonitor =>
+      _localizedValues[locale.languageCode]!['temperature_monitor']!;
+  String get untested => _localizedValues[locale.languageCode]!['untested']!;
+  String get tested => _localizedValues[locale.languageCode]!['tested']!;
+  String get unavailable =>
+      _localizedValues[locale.languageCode]!['unavailable']!;
+  String thermalStatusLabel(int status) {
+    final key = switch (status) {
+      1 => 'thermal_light',
+      2 => 'thermal_moderate',
+      3 => 'thermal_severe',
+      4 => 'thermal_critical',
+      5 => 'thermal_emergency',
+      6 => 'thermal_shutdown',
+      _ => 'thermal_normal',
+    };
+    return _localizedValues[locale.languageCode]![key]!;
+  }
 
   // Challenges
   String get selectChallenge =>
@@ -425,6 +447,19 @@ class AppLocalizations {
       'search_mode': 'Modo de busca',
       'sequential': 'Sequencial',
       'random': 'Aleatório',
+      'temperature': 'Temperatura',
+      'thermal_state': 'Estado térmico',
+      'temperature_monitor': 'Monitor de temperatura',
+      'untested': 'Não testado',
+      'tested': 'Testado',
+      'unavailable': 'Indisponível',
+      'thermal_normal': 'Normal',
+      'thermal_light': 'Leve',
+      'thermal_moderate': 'Moderado',
+      'thermal_severe': 'Severo',
+      'thermal_critical': 'Crítico',
+      'thermal_emergency': 'Emergência',
+      'thermal_shutdown': 'Desligamento',
 
       'select_challenge': 'Selecione um desafio',
       'solved': 'Resolvido',
@@ -609,6 +644,19 @@ class AppLocalizations {
       'search_mode': 'Search mode',
       'sequential': 'Sequential',
       'random': 'Random',
+      'temperature': 'Temperature',
+      'thermal_state': 'Thermal state',
+      'temperature_monitor': 'Temperature monitor',
+      'untested': 'Untested',
+      'tested': 'Tested',
+      'unavailable': 'Unavailable',
+      'thermal_normal': 'Normal',
+      'thermal_light': 'Light',
+      'thermal_moderate': 'Moderate',
+      'thermal_severe': 'Severe',
+      'thermal_critical': 'Critical',
+      'thermal_emergency': 'Emergency',
+      'thermal_shutdown': 'Shutdown',
 
       'select_challenge': 'Select a challenge',
       'solved': 'Solved',
@@ -788,6 +836,19 @@ class AppLocalizations {
       'search_mode': 'Modo de búsqueda',
       'sequential': 'Secuencial',
       'random': 'Aleatorio',
+      'temperature': 'Temperatura',
+      'thermal_state': 'Estado térmico',
+      'temperature_monitor': 'Monitor de temperatura',
+      'untested': 'No probado',
+      'tested': 'Probado',
+      'unavailable': 'No disponible',
+      'thermal_normal': 'Normal',
+      'thermal_light': 'Leve',
+      'thermal_moderate': 'Moderado',
+      'thermal_severe': 'Severo',
+      'thermal_critical': 'Crítico',
+      'thermal_emergency': 'Emergencia',
+      'thermal_shutdown': 'Apagado',
 
       'select_challenge': 'Seleccione un desafío',
       'solved': 'Resuelto',

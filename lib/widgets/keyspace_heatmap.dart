@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/keyspace_grid.dart';
 import '../providers/grid_provider.dart';
 
@@ -34,12 +36,11 @@ class KeyspaceHeatmap extends StatelessWidget {
 
         return Column(
           children: [
-            // Título e estatísticas
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  '🗺️ Mapa de Cobertura',
+                  'Mapa de Cobertura',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -57,8 +58,6 @@ class KeyspaceHeatmap extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
-            // Grid visual
             Container(
               width: size,
               height: size,
@@ -81,22 +80,22 @@ class KeyspaceHeatmap extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 8),
-
-            // Legenda
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildLegendItem(Colors.green, 'Não testado'),
+                _buildLegendItem(
+                  Colors.green,
+                  AppLocalizations.of(context).untested,
+                ),
                 const SizedBox(width: 16),
-                _buildLegendItem(Colors.red, 'Testado'),
+                _buildLegendItem(
+                  Colors.red,
+                  AppLocalizations.of(context).tested,
+                ),
               ],
             ),
-
             const SizedBox(height: 8),
-
-            // Estatísticas
             Text(
               '${grid.testedCount} / ${grid.gridSize * grid.gridSize} blocos',
               style: const TextStyle(

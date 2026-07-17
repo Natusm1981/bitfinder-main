@@ -36,6 +36,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
   Timer? _statusUpdateTimer;
   WalletChallenge? _selectedChallenge;
   String? _lastSyncedConfig;
+  int _selectedNavigationIndex = 0;
 
   @override
   void initState() {
@@ -154,7 +155,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Bit Finder'),
+          title: Text(_navigationTitle(context)),
           centerTitle: true,
 
           // actions: [
@@ -188,14 +189,57 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
           //   ),
           // ],
         ),
-        drawer: _buildDrawer(context),
-        floatingActionButton: Consumer<KeyFinderProvider>(
-          builder:
-              (context, provider, child) =>
-                  _buildSearchFloatingActionButton(provider),
-        ),
+        floatingActionButton:
+            _selectedNavigationIndex == 0
+                ? Consumer<KeyFinderProvider>(
+                  builder:
+                      (context, provider, child) =>
+                          _buildSearchFloatingActionButton(provider),
+                )
+                : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        body: Column(
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _selectedNavigationIndex,
+          onDestinationSelected:
+              (index) => setState(() => _selectedNavigationIndex = index),
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: const Icon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.history_outlined),
+              selectedIcon: const Icon(Icons.history),
+              label: AppLocalizations.of(context).history,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings),
+              label: AppLocalizations.of(context).settings,
+            ),
+          ],
+        ),
+        body:
+            _selectedNavigationIndex == 0
+                ? _buildHomeTab(propaganda)
+                : _selectedNavigationIndex == 1
+                ? const HistoryScreen(showAppBar: false)
+                : const SettingsScreen(showAppBar: false),
+      ),
+    );
+  }
+
+  String _navigationTitle(BuildContext context) {
+    return switch (_selectedNavigationIndex) {
+      1 => AppLocalizations.of(context).history,
+      2 => AppLocalizations.of(context).settings,
+      _ => 'Bit Finder',
+    };
+  }
+
+  Widget _buildHomeTab(BannerAdWidget propaganda) {
+    return Column(
           children: [
             // Espaço reservado para banner ad
             Container(
@@ -274,13 +318,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                                     color: Colors.green,
                                   ),
                                   onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) => const HistoryScreen(),
-                                      ),
-                                    );
+                                    setState(() => _selectedNavigationIndex = 1);
                                   },
                                   tooltip: 'Ver Histórico',
                                 ),
@@ -303,9 +341,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildSearchFloatingActionButton(KeyFinderProvider provider) {
@@ -893,12 +929,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SettingsScreen(),
-                              ),
-                            );
+                            setState(() => _selectedNavigationIndex = 2);
                           },
                           child: Text(AppLocalizations.of(context).settings),
                         ),
@@ -993,10 +1024,17 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                     AppLocalizations.of(context).elapsed,
                     status.timeFormatted,
                   ),
-                  _buildStatusRow('Temperatura', status.temperatureFormatted),
                   _buildStatusRow(
-                    'Estado termico',
-                    status.thermalStatusFormatted,
+                    AppLocalizations.of(context).temperature,
+                    status.batteryTemperatureCelsius == null
+                        ? AppLocalizations.of(context).unavailable
+                        : '${status.batteryTemperatureCelsius!.toStringAsFixed(1)} °C',
+                  ),
+                  _buildStatusRow(
+                    AppLocalizations.of(context).thermalState,
+                    AppLocalizations.of(
+                      context,
+                    ).thermalStatusLabel(status.thermalStatus),
                   ),
                   const SizedBox(height: 16),
                   _buildTemperatureChart(provider.temperatureHistory),
@@ -1045,7 +1083,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
               const Icon(Icons.thermostat, size: 18, color: Colors.deepOrange),
               const SizedBox(width: 6),
               Text(
-                'Monitor de temperatura',
+                AppLocalizations.of(context).temperatureMonitor,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const Spacer(),
@@ -1419,6 +1457,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
     Vibration.cancel();
   }
 
+  // ignore: unused_element
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: ListView(

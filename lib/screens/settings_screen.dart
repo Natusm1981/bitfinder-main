@@ -9,7 +9,9 @@ import '../l10n/app_localizations.dart';
 // import '../utils/fast_crypto.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool showAppBar;
+
+  const SettingsScreen({super.key, this.showAppBar = true});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -36,7 +38,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context).settings)),
+      appBar:
+          widget.showAppBar
+              ? AppBar(title: Text(AppLocalizations.of(context).settings))
+              : null,
       body: ListView(
         children: [
           const SizedBox(height: 8),
