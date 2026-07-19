@@ -11,6 +11,7 @@ import 'providers/history_provider.dart';
 import 'providers/search_progress_provider.dart';
 import 'providers/performance_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/workload_provider.dart';
 import 'screens/key_finder_screen.dart';
 import 'screens/about_screen.dart';
 import 'services/app_open_ad_service.dart';
@@ -92,6 +93,7 @@ class _BitFinderAppState extends State<BitFinderApp>
         ChangeNotifierProvider(create: (_) => SearchProgressProvider()),
         ChangeNotifierProvider(create: (_) => PerformanceProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
+        ChangeNotifierProvider(create: (_) => WorkloadProvider()),
         ChangeNotifierProvider(create: (_) => PoolServerService()),
         ChangeNotifierProvider(create: (_) => PoolClientService()),
       ],

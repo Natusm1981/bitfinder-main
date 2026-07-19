@@ -12,6 +12,7 @@ import '../utils/address_util.dart';
 import 'history_provider.dart';
 import 'search_progress_provider.dart';
 import 'performance_provider.dart';
+import 'workload_provider.dart';
 
 class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const _lastConfigKey = 'last_search_config_v1';
@@ -23,6 +24,7 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   HistoryProvider? _historyProvider;
   SearchProgressProvider? _progressProvider;
   PerformanceProvider? _performanceProvider;
+  WorkloadProvider? _workloadProvider;
 
   void setHistoryProvider(HistoryProvider provider) {
     _historyProvider = provider;
@@ -34,6 +36,10 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   void setPerformanceProvider(PerformanceProvider provider) {
     _performanceProvider = provider;
+  }
+
+  void setWorkloadProvider(WorkloadProvider provider) {
+    _workloadProvider = provider;
   }
 
   KeySearchConfig _config = KeySearchConfig();
@@ -67,6 +73,11 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// Start the key search
   Future<void> startSearch() async {
     if (_config.isRunning || !canStartSearch) return;
+    if (_workloadProvider?.acquire(WorkloadActivity.localSearch) == false) {
+      _errorMessage = 'Another search is already running';
+      notifyListeners();
+      return;
+    }
 
     _errorMessage = null;
 
@@ -141,6 +152,7 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
 
     _keyFinder!.onCompleted = () {
       _config = _config.copyWith(isRunning: false);
+      _workloadProvider?.release(WorkloadActivity.localSearch);
       WakelockPlus.disable();
       unawaited(_progressProvider?.stopProgress());
       unawaited(_persistConfiguration());
@@ -157,6 +169,7 @@ class KeyFinderProvider extends ChangeNotifier with WidgetsBindingObserver {
       await finder.stop();
     }
     _keyFinder = null;
+    _workloadProvider?.release(WorkloadActivity.localSearch);
     _config = _config.copyWith(isRunning: false);
     _temperatureHistory.clear();
 

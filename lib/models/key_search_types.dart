@@ -147,6 +147,22 @@ class KeySearchResult {
     if (challengeId != null) 'challengeId': challengeId,
   };
 
+  factory KeySearchResult.fromJson(Map<String, dynamic> json) {
+    return KeySearchResult(
+      address: json['address'] as String,
+      privateKey: BigInt.parse(json['privateKey'] as String, radix: 16),
+      privateKeyWIF: json['privateKeyWIF'] as String,
+      publicKeyX: json['publicKeyX'] as String,
+      publicKeyY: json['publicKeyY'] as String,
+      compressed: json['compressed'] as bool,
+      foundAt:
+          json['foundAt'] == null
+              ? null
+              : DateTime.parse(json['foundAt'] as String),
+      challengeId: json['challengeId'] as int?,
+    );
+  }
+
   @override
   String toString() {
     return 'Address: $address\n'

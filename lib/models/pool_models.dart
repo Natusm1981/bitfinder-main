@@ -170,7 +170,7 @@ class PoolServerConfig {
     required this.targets,
     this.distributionMode = PoolDistributionMode.sequential,
     this.port = 40404,
-    this.batchSize = 2000000,
+    this.batchSize = 5000000,
   });
 
   BigInt get totalKeys =>
@@ -199,7 +199,7 @@ class PoolServerConfig {
       compressionIndex: json['compressionIndex'] as int? ?? 0,
       targets: List<String>.from(json['targets'] as List<dynamic>? ?? const []),
       port: json['port'] as int? ?? 40404,
-      batchSize: json['batchSize'] as int? ?? 2000000,
+      batchSize: json['batchSize'] as int? ?? 5000000,
       distributionMode: PoolDistributionMode.values[distributionModeIndex.clamp(
         0,
         PoolDistributionMode.values.length - 1,

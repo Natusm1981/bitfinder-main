@@ -10,10 +10,12 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
+import '../providers/history_provider.dart';
+import '../providers/workload_provider.dart';
 
 class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
   static const int defaultPort = 40404;
-  static const int defaultBatchSize = 2000000;
+  static const int defaultBatchSize = 5000000;
   static const String _storageKey = 'pool_server_completed_ranges';
 
   ServerSocket? _serverSocket;
@@ -25,6 +27,9 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
   String? _errorMessage;
   bool _isStarting = false;
   String? _appVersion;
+  WorkloadProvider? _workloadProvider;
+  HistoryProvider? _historyProvider;
+  KeySearchResult? _foundResult;
 
   final Map<String, Socket> _sockets = {};
   final Map<String, StreamSubscription<String>> _subscriptions = {};
@@ -35,10 +40,19 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
   }
 
+  void setWorkloadProvider(WorkloadProvider provider) {
+    _workloadProvider = provider;
+  }
+
+  void setHistoryProvider(HistoryProvider provider) {
+    _historyProvider = provider;
+  }
+
   bool get isRunning => _serverSocket != null;
   bool get isStarting => _isStarting;
   String? get hostAddress => _hostAddress;
   String? get errorMessage => _errorMessage;
+  KeySearchResult? get foundResult => _foundResult;
   PoolServerConfig? get config => _config;
   List<PoolClientInfo> get clients =>
       _clients.values
@@ -101,9 +115,15 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> start(PoolServerConfig config) async {
     if (isRunning || _isStarting) return;
+    if (_workloadProvider?.acquire(WorkloadActivity.poolHost) == false) {
+      _errorMessage = 'Another search is already running';
+      notifyListeners();
+      return;
+    }
 
     _isStarting = true;
     _errorMessage = null;
+    _foundResult = null;
     _config = config;
     _appVersion = await _loadAppVersion();
     _nextSequenceIndex = BigInt.zero;
@@ -143,6 +163,7 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
     _sockets.clear();
     _clients.clear();
     _hostAddress = null;
+    _workloadProvider?.release(WorkloadActivity.poolHost);
     await WakelockPlus.disable();
     notifyListeners();
   }
@@ -280,11 +301,24 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
 
   void _handleFound(String clientId, Map<String, dynamic> message) {
     _touchClient(clientId);
+    final resultJson = message['result'];
+    if (resultJson is Map<String, dynamic>) {
+      final result = KeySearchResult.fromJson(resultJson);
+      _foundResult = result;
+      unawaited(_historyProvider?.addToHistory(result));
+    }
     _sendToAll({
       'type': 'stop',
       'reason': 'found',
-      'result': message['result'],
+      'result': resultJson,
     });
+    notifyListeners();
+    unawaited(_stopAfterFound());
+  }
+
+  Future<void> _stopAfterFound() async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    await stop();
   }
 
   void _touchClient(String clientId) {

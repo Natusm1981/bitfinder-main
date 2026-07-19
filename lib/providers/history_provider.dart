@@ -21,16 +21,7 @@ class HistoryProvider extends ChangeNotifier {
       _history =
           historyJson.map((jsonStr) {
             final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-            return KeySearchResult(
-              address: json['address'] as String,
-              privateKey: BigInt.parse(json['privateKey'] as String, radix: 16),
-              publicKeyX: json['publicKeyX'] as String,
-              publicKeyY: json['publicKeyY'] as String,
-              compressed: json['compressed'] as bool,
-              privateKeyWIF: json['privateKeyWIF'] as String,
-              foundAt: DateTime.parse(json['foundAt'] as String),
-              challengeId: json['challengeId'] as int?,
-            );
+            return KeySearchResult.fromJson(json);
           }).toList();
 
       // Sort by date (most recent first)

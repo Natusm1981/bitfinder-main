@@ -1,14 +1,18 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vibration/vibration.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
+import '../providers/history_provider.dart';
 import '../providers/key_finder_provider.dart';
 import '../providers/performance_provider.dart';
+import '../providers/workload_provider.dart';
 import '../services/pool_client_service.dart';
 import '../services/pool_server_service.dart';
 
@@ -24,12 +28,24 @@ class PoolScreen extends StatefulWidget {
 class _PoolScreenState extends State<PoolScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  String? _shownFoundResultSignature;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_keepHostTabWhenServerRuns);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final workload = context.read<WorkloadProvider>();
+      context.read<PoolServerService>().setWorkloadProvider(workload);
+      context.read<PoolServerService>().setHistoryProvider(
+        context.read<HistoryProvider>(),
+      );
+      context.read<PoolClientService>().setWorkloadProvider(workload);
+      context.read<PoolClientService>().setHistoryProvider(
+        context.read<HistoryProvider>(),
+      );
+    });
   }
 
   @override
@@ -50,12 +66,15 @@ class _PoolScreenState extends State<PoolScreen>
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final server = context.watch<PoolServerService>();
+    final client = context.watch<PoolClientService>();
+    final foundResult = server.foundResult ?? client.foundResult;
 
     if (server.isRunning && _tabController.index != 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _tabController.animateTo(0);
       });
     }
+    _showPoolFoundDialogIfNeeded(foundResult);
 
     final content = Column(
         children: [
@@ -112,6 +131,172 @@ class _PoolScreenState extends State<PoolScreen>
       body: content,
     );
   }
+
+  void _showPoolFoundDialogIfNeeded(KeySearchResult? result) {
+    if (result == null) return;
+    final signature = '${result.address}:${result.privateKeyHex}';
+    if (_shownFoundResultSignature == signature) return;
+    _shownFoundResultSignature = signature;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showPoolKeyFoundDialog(context, result);
+    });
+  }
+}
+
+Future<void> showPoolKeyFoundDialog(
+  BuildContext context,
+  KeySearchResult result,
+) async {
+  final hasVibrator = await Vibration.hasVibrator();
+  if (hasVibrator == true) {
+    Vibration.vibrate(pattern: [0, 500, 200], repeat: 0);
+  }
+  if (!context.mounted) return;
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      final localizations = AppLocalizations.of(dialogContext);
+      return PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.celebration, color: Colors.green, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  localizations.keyFound.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  localizations.stopSearchKeyFound,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _DialogResultRow(localizations.address, result.address),
+                const SizedBox(height: 12),
+                _DialogResultRow(
+                  '${localizations.privateKey} (Hex)',
+                  result.privateKeyHex,
+                ),
+                const SizedBox(height: 12),
+                _DialogResultRow(
+                  '${localizations.privateKey} (WIF)',
+                  result.privateKeyWIF,
+                ),
+                const SizedBox(height: 12),
+                _DialogResultRow(
+                  '${localizations.privateKey} (Dec)',
+                  result.privateKey.toString(),
+                ),
+                const SizedBox(height: 12),
+                _DialogResultRow(
+                  localizations.compressed,
+                  result.compressed ? localizations.yes : localizations.no,
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: Colors.orange, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          localizations.storeKeySafely,
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            FilledButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: result.toString()));
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(
+                    content: Text(localizations.copied),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.copy),
+              label: Text(localizations.copyAll),
+              style: FilledButton.styleFrom(backgroundColor: Colors.blue),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Vibration.cancel();
+                Navigator.pop(dialogContext);
+              },
+              icon: const Icon(Icons.check),
+              label: Text(localizations.ok),
+              style: FilledButton.styleFrom(backgroundColor: Colors.green),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+  Vibration.cancel();
+}
+
+class _DialogResultRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DialogResultRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 4),
+        SelectableText(
+          value,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+        ),
+      ],
+    );
+  }
 }
 
 class _PoolClientTab extends StatefulWidget {
@@ -153,7 +338,9 @@ class _PoolClientTabState extends State<_PoolClientTab> {
   Widget build(BuildContext context) {
     final client = context.watch<PoolClientService>();
     final performance = context.watch<PerformanceProvider>();
+    final workload = context.watch<WorkloadProvider>();
     final connected = client.isConnected;
+    final canUseClient = workload.canStart(WorkloadActivity.poolClient);
     final numThreads = (_numThreads ?? performance.numThreads).clamp(
       1,
       performance.maxThreads,
@@ -179,7 +366,7 @@ class _PoolClientTabState extends State<_PoolClientTab> {
                 isConnecting: client.status == PoolWorkerStatus.connecting,
                 errorMessage: client.errorMessage,
                 onThreadsChanged: (value) => setState(() => _numThreads = value),
-                onConnect: () => _connect(client),
+                onConnect: canUseClient ? () => _connect(client) : null,
               ),
           const SizedBox(height: 12),
           if (connected)
@@ -217,6 +404,10 @@ class _PoolClientTabState extends State<_PoolClientTab> {
     if (port != null) {
       _portController.text = port.toString();
     }
+    final deviceName = endpoint.deviceName;
+    if (deviceName != null && deviceName.isNotEmpty) {
+      _deviceNameController.text = deviceName;
+    }
   }
 
   String _workerStatusLabel(BuildContext context, PoolWorkerStatus status) {
@@ -249,7 +440,9 @@ class _PoolHostTabState extends State<_PoolHostTab> {
     final localizations = AppLocalizations.of(context);
     final keyFinder = context.watch<KeyFinderProvider>();
     final server = context.watch<PoolServerService>();
+    final workload = context.watch<WorkloadProvider>();
     final canStart = keyFinder.config.targets.isNotEmpty;
+    final canUseHost = workload.canStart(WorkloadActivity.poolHost);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
@@ -283,7 +476,7 @@ class _PoolHostTabState extends State<_PoolHostTab> {
                                 ? null
                                 : server.isRunning
                                 ? () => server.stop()
-                                 : canStart
+                                 : canStart && canUseHost
                                  ? () => _startHost(
                                    context,
                                    server,
@@ -529,7 +722,7 @@ class _ClientConnectionForm extends StatelessWidget {
   final bool isConnecting;
   final String? errorMessage;
   final ValueChanged<int> onThreadsChanged;
-  final VoidCallback onConnect;
+  final VoidCallback? onConnect;
 
   const _ClientConnectionForm({
     required this.hostController,

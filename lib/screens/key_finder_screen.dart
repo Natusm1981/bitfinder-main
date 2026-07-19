@@ -9,11 +9,14 @@ import '../providers/key_finder_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/search_progress_provider.dart';
 import '../providers/performance_provider.dart';
+import '../providers/workload_provider.dart';
 // import '../providers/locale_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/key_search_types.dart';
 import '../models/wallet_challenge.dart';
 import '../services/challenge_loader.dart';
+import '../services/pool_client_service.dart';
+import '../services/pool_server_service.dart';
 import '../widgets/progress_heatmap.dart';
 import 'settings_screen.dart';
 import 'history_screen.dart';
@@ -61,9 +64,30 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
         context,
         listen: false,
       );
+      final workloadProvider = Provider.of<WorkloadProvider>(
+        context,
+        listen: false,
+      );
       provider.setHistoryProvider(historyProvider);
       provider.setProgressProvider(progressProvider);
       provider.setPerformanceProvider(performanceProvider);
+      provider.setWorkloadProvider(workloadProvider);
+      Provider.of<PoolServerService>(
+        context,
+        listen: false,
+      ).setWorkloadProvider(workloadProvider);
+      Provider.of<PoolServerService>(
+        context,
+        listen: false,
+      ).setHistoryProvider(historyProvider);
+      Provider.of<PoolClientService>(
+        context,
+        listen: false,
+      ).setWorkloadProvider(workloadProvider);
+      Provider.of<PoolClientService>(
+        context,
+        listen: false,
+      ).setHistoryProvider(historyProvider);
       provider.addListener(_checkForResults);
       provider.addListener(_syncConfigurationFields);
       await provider.initialized;
@@ -356,14 +380,18 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
   }
 
   Widget _buildSearchFloatingActionButton(KeyFinderProvider provider) {
+    final workload = context.watch<WorkloadProvider>();
     final isRunning = provider.isRunning;
     final canStart = provider.canStartSearch;
+    final canUseLocalSearch = workload.canStart(WorkloadActivity.localSearch);
     return FloatingActionButton.extended(
       heroTag: 'search-action',
       onPressed:
           isRunning
               ? () => provider.stopSearch()
-              : (canStart ? () => provider.startSearch() : null),
+              : (canStart && canUseLocalSearch
+                  ? () => provider.startSearch()
+                  : null),
       icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
       label: Text(
         isRunning

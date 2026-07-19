@@ -9,16 +9,20 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
+import '../providers/history_provider.dart';
+import '../providers/workload_provider.dart';
 import '../services/key_finder.dart';
 import '../utils/address_util.dart';
 
 class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   static const String _lastHostKey = 'pool_client_last_host';
   static const String _lastPortKey = 'pool_client_last_port';
+  static const String _lastDeviceNameKey = 'pool_client_last_device_name';
 
   Socket? _socket;
   StreamSubscription<String>? _subscription;
   Timer? _heartbeatTimer;
+  Timer? _progressTimer;
   KeyFinder? _keyFinder;
   PoolServerConfig? _serverConfig;
   PoolWorkerStatus _status = PoolWorkerStatus.disconnected;
@@ -37,10 +41,21 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   String? _errorMessage;
   String? _appVersion;
   String? _hostVersion;
+  WorkloadProvider? _workloadProvider;
+  HistoryProvider? _historyProvider;
+  KeySearchResult? _foundResult;
   final List<TemperatureSample> _temperatureHistory = [];
 
   PoolClientService() {
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  void setWorkloadProvider(WorkloadProvider provider) {
+    _workloadProvider = provider;
+  }
+
+  void setHistoryProvider(HistoryProvider provider) {
+    _historyProvider = provider;
   }
 
   PoolWorkerStatus get status => _status;
@@ -63,6 +78,7 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   String? get errorMessage => _errorMessage;
   String? get appVersion => _appVersion;
   String? get hostVersion => _hostVersion;
+  KeySearchResult? get foundResult => _foundResult;
 
   Future<void> connect({
     required String host,
@@ -71,6 +87,11 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     String? deviceName,
   }) async {
     if (_socket != null || _status == PoolWorkerStatus.connecting) return;
+    if (_workloadProvider?.acquire(WorkloadActivity.poolClient) == false) {
+      _errorMessage = 'Another search is already running';
+      notifyListeners();
+      return;
+    }
 
     _host = host.trim();
     _port = port;
@@ -78,12 +99,14 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _appVersion = await _loadAppVersion();
     _status = PoolWorkerStatus.connecting;
     _errorMessage = null;
+    _foundResult = null;
     notifyListeners();
 
     try {
       final socket = await Socket.connect(_host, port, timeout: const Duration(seconds: 8));
       _socket = socket;
       await _saveLastEndpoint(_host!, port);
+      await saveLastDeviceName(deviceName ?? '');
       await WakelockPlus.enable();
       _status = PoolWorkerStatus.connected;
       _subscription = utf8.decoder
@@ -107,6 +130,7 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     } catch (error) {
       _errorMessage = error.toString();
       _status = PoolWorkerStatus.disconnected;
+      _workloadProvider?.release(WorkloadActivity.poolClient);
       notifyListeners();
     }
   }
@@ -115,6 +139,8 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     await _stopCurrentRange();
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _progressTimer?.cancel();
+    _progressTimer = null;
     await _subscription?.cancel();
     _subscription = null;
     _socket?.destroy();
@@ -130,6 +156,7 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _batteryTemperatureCelsius = null;
     _temperatureHistory.clear();
     _status = PoolWorkerStatus.disconnected;
+    _workloadProvider?.release(WorkloadActivity.poolClient);
     await WakelockPlus.disable();
     notifyListeners();
   }
@@ -139,11 +166,13 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _send({'type': 'assign_request'});
   }
 
-  Future<({String? host, int? port})> loadLastEndpoint() async {
+  Future<({String? host, int? port, String? deviceName})>
+  loadLastEndpoint() async {
     final prefs = await SharedPreferences.getInstance();
     return (
       host: prefs.getString(_lastHostKey),
       port: prefs.getInt(_lastPortKey),
+      deviceName: prefs.getString(_lastDeviceNameKey),
     );
   }
 
@@ -163,7 +192,7 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
           _status = PoolWorkerStatus.completed;
           notifyListeners();
         case 'stop':
-          unawaited(_stopCurrentRange());
+          unawaited(_handleStop(decoded));
       }
     } catch (error) {
       _errorMessage = error.toString();
@@ -210,6 +239,7 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _rangeKeysChecked = BigInt.zero;
     _speed = 0;
     _status = PoolWorkerStatus.searching;
+    _startProgressTimer();
     notifyListeners();
 
     final searchConfig = _buildSearchConfig(config);
@@ -233,8 +263,6 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
           );
         }
       }
-      _sendProgress();
-      notifyListeners();
     };
     _keyFinder!.onProgress = (start, end) {
       final stride = searchConfig.stride;
@@ -242,20 +270,26 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
           end >= start ? ((end - start) ~/ stride) + BigInt.one : BigInt.zero;
       _rangeKeysChecked += checked;
       _totalKeysChecked += checked;
-      _sendProgress();
-      notifyListeners();
     };
     _keyFinder!.onResult = (result) {
+      _foundResult = result;
+      unawaited(_historyProvider?.addToHistory(result));
+      notifyListeners();
       _send({'type': 'found', 'result': result.toJson()});
-      unawaited(disconnect());
+      unawaited(_disconnectAfterFound());
     };
     _keyFinder!.onError = (error) {
       _errorMessage = error;
       _sendProgress();
+      _progressTimer?.cancel();
+      _progressTimer = null;
       unawaited(_stopCurrentRange());
       notifyListeners();
     };
     _keyFinder!.onCompleted = () {
+      _sendProgress();
+      _progressTimer?.cancel();
+      _progressTimer = null;
       _send({
         'type': 'work_completed',
         'rangeId': _currentRangeId,
@@ -311,11 +345,24 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _stopCurrentRange() async {
+    _progressTimer?.cancel();
+    _progressTimer = null;
     final finder = _keyFinder;
     _keyFinder = null;
     if (finder != null) {
       await finder.stop();
     }
+  }
+
+  Future<void> _handleStop(Map<String, dynamic> message) async {
+    final resultJson = message['result'];
+    if (message['reason'] == 'found' && resultJson is Map<String, dynamic>) {
+      final result = KeySearchResult.fromJson(resultJson);
+      _foundResult = result;
+      await _historyProvider?.addToHistory(result);
+      notifyListeners();
+    }
+    await disconnect();
   }
 
   void _sendProgress() {
@@ -325,6 +372,15 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
       'rangeId': _currentRangeId,
       'keysChecked': _rangeKeysChecked.toString(),
       'speed': _speed,
+    });
+  }
+
+  void _startProgressTimer() {
+    _progressTimer?.cancel();
+    _progressTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (_currentRangeId == null || _socket == null) return;
+      _sendProgress();
+      notifyListeners();
     });
   }
 
@@ -345,6 +401,12 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     socket.writeln(jsonEncode(message));
   }
 
+  Future<void> _disconnectAfterFound() async {
+    await _socket?.flush();
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    await disconnect();
+  }
+
   void _handleDisconnect(String? error) {
     _errorMessage = error;
     unawaited(disconnect());
@@ -354,6 +416,13 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastHostKey, host);
     await prefs.setInt(_lastPortKey, port);
+  }
+
+  Future<void> saveLastDeviceName(String deviceName) async {
+    final trimmed = deviceName.trim();
+    if (trimmed.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastDeviceNameKey, trimmed);
   }
 
   Future<String> _loadAppVersion() async {
