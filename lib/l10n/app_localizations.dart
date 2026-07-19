@@ -37,7 +37,51 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['menu_history']!;
   String get menuPerformance =>
       _localizedValues[locale.languageCode]!['menu_performance']!;
+  String get menuPool => _localizedValues[locale.languageCode]!['menu_pool']!;
   String get menuAbout => _localizedValues[locale.languageCode]!['menu_about']!;
+  String get poolHost => _localizedValues[locale.languageCode]!['pool_host']!;
+  String get poolClients =>
+      _localizedValues[locale.languageCode]!['pool_clients']!;
+  String get comingSoon =>
+      _localizedValues[locale.languageCode]!['coming_soon']!;
+  String get poolServer =>
+      _localizedValues[locale.languageCode]!['pool_server']!;
+  String get poolStartHost =>
+      _localizedValues[locale.languageCode]!['pool_start_host']!;
+  String get poolStopHost =>
+      _localizedValues[locale.languageCode]!['pool_stop_host']!;
+  String get poolHostReady =>
+      _localizedValues[locale.languageCode]!['pool_host_ready']!;
+  String get poolHostStopped =>
+      _localizedValues[locale.languageCode]!['pool_host_stopped']!;
+  String get poolHostAddress =>
+      _localizedValues[locale.languageCode]!['pool_host_address']!;
+  String get poolUseCurrentSearchConfig =>
+      _localizedValues[locale.languageCode]!['pool_use_current_search_config']!;
+  String get poolServerError =>
+      _localizedValues[locale.languageCode]!['pool_server_error']!;
+  String get poolCompletedRangesStored =>
+      _localizedValues[locale.languageCode]!['pool_completed_ranges_stored']!;
+  String get poolRangesActive =>
+      _localizedValues[locale.languageCode]!['pool_ranges_active']!;
+  String get poolLiveProgress =>
+      _localizedValues[locale.languageCode]!['pool_live_progress']!;
+  String get poolTotalSpeed =>
+      _localizedValues[locale.languageCode]!['pool_total_speed']!;
+  String get poolConnectedClients =>
+      _localizedValues[locale.languageCode]!['pool_connected_clients']!;
+  String get poolNoClients =>
+      _localizedValues[locale.languageCode]!['pool_no_clients']!;
+  String get poolCurrentRange =>
+      _localizedValues[locale.languageCode]!['pool_current_range']!;
+  String get poolClientConnected =>
+      _localizedValues[locale.languageCode]!['pool_client_connected']!;
+  String get poolClientSearching =>
+      _localizedValues[locale.languageCode]!['pool_client_searching']!;
+  String get poolClientIdle =>
+      _localizedValues[locale.languageCode]!['pool_client_idle']!;
+  String get poolClientDisconnected =>
+      _localizedValues[locale.languageCode]!['pool_client_disconnected']!;
 
   // Key Finder Screen
   String get targetAddress =>
@@ -365,7 +409,30 @@ class AppLocalizations {
       'menu_home': 'Início',
       'menu_history': 'Histórico',
       'menu_performance': 'Performance',
+      'menu_pool': 'Pool',
       'menu_about': 'Sobre',
+      'pool_host': 'Host',
+      'pool_clients': 'Clientes',
+      'coming_soon': 'Em breve',
+      'pool_server': 'Servidor da Pool',
+      'pool_start_host': 'Iniciar Host',
+      'pool_stop_host': 'Parar Host',
+      'pool_host_ready': 'Host ativo na rede Wi-Fi local.',
+      'pool_host_stopped': 'Inicie o host para aceitar clientes na rede local.',
+      'pool_host_address': 'Endereço do Host',
+      'pool_use_current_search_config': 'Configuração atual',
+      'pool_server_error': 'Erro do servidor',
+      'pool_completed_ranges_stored': 'Ranges concluídos salvos',
+      'pool_ranges_active': 'Ranges ativos',
+      'pool_live_progress': 'Progresso ao vivo',
+      'pool_total_speed': 'Velocidade total',
+      'pool_connected_clients': 'Clientes conectados',
+      'pool_no_clients': 'Nenhum cliente conectado',
+      'pool_current_range': 'Range atual',
+      'pool_client_connected': 'Conectado',
+      'pool_client_searching': 'Buscando',
+      'pool_client_idle': 'Ocioso',
+      'pool_client_disconnected': 'Desconectado',
       'about_app': 'Sobre o Aplicativo',
       'key': 'Chave',
       'about_content':
@@ -574,7 +641,30 @@ class AppLocalizations {
       'menu_home': 'Home',
       'menu_history': 'History',
       'menu_performance': 'Performance',
+      'menu_pool': 'Pool',
       'menu_about': 'About',
+      'pool_host': 'Host',
+      'pool_clients': 'Clients',
+      'coming_soon': 'Coming soon',
+      'pool_server': 'Pool Server',
+      'pool_start_host': 'Start Host',
+      'pool_stop_host': 'Stop Host',
+      'pool_host_ready': 'Host is active on the local Wi-Fi network.',
+      'pool_host_stopped': 'Start the host to accept clients on the local network.',
+      'pool_host_address': 'Host Address',
+      'pool_use_current_search_config': 'Current configuration',
+      'pool_server_error': 'Server error',
+      'pool_completed_ranges_stored': 'Saved completed ranges',
+      'pool_ranges_active': 'Active ranges',
+      'pool_live_progress': 'Live progress',
+      'pool_total_speed': 'Total speed',
+      'pool_connected_clients': 'Connected clients',
+      'pool_no_clients': 'No clients connected',
+      'pool_current_range': 'Current range',
+      'pool_client_connected': 'Connected',
+      'pool_client_searching': 'Searching',
+      'pool_client_idle': 'Idle',
+      'pool_client_disconnected': 'Disconnected',
       'about_app': 'About the App',
       'about_content':
           'Bit Finder is a replica of the BitCrack KeyFinder software, '
@@ -794,7 +884,30 @@ class AppLocalizations {
       'menu_home': 'Inicio',
       'menu_history': 'Historial',
       'menu_performance': 'Rendimiento',
+      'menu_pool': 'Pool',
       'menu_about': 'Acerca de',
+      'pool_host': 'Host',
+      'pool_clients': 'Clientes',
+      'coming_soon': 'Próximamente',
+      'pool_server': 'Servidor de la Pool',
+      'pool_start_host': 'Iniciar Host',
+      'pool_stop_host': 'Detener Host',
+      'pool_host_ready': 'Host activo en la red Wi-Fi local.',
+      'pool_host_stopped': 'Inicie el host para aceptar clientes en la red local.',
+      'pool_host_address': 'Dirección del Host',
+      'pool_use_current_search_config': 'Configuración actual',
+      'pool_server_error': 'Error del servidor',
+      'pool_completed_ranges_stored': 'Rangos completados guardados',
+      'pool_ranges_active': 'Rangos activos',
+      'pool_live_progress': 'Progreso en vivo',
+      'pool_total_speed': 'Velocidad total',
+      'pool_connected_clients': 'Clientes conectados',
+      'pool_no_clients': 'Ningún cliente conectado',
+      'pool_current_range': 'Rango actual',
+      'pool_client_connected': 'Conectado',
+      'pool_client_searching': 'Buscando',
+      'pool_client_idle': 'Inactivo',
+      'pool_client_disconnected': 'Desconectado',
       'about_app': 'Acerca del Aplicativo',
 
       'target_address': 'Dirección Objetivo',

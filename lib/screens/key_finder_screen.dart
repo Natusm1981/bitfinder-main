@@ -18,6 +18,7 @@ import '../widgets/progress_heatmap.dart';
 import 'settings_screen.dart';
 import 'history_screen.dart';
 import 'about_screen.dart';
+import 'pool_screen.dart';
 
 class KeyFinderScreen extends StatefulWidget {
   const KeyFinderScreen({super.key});
@@ -37,6 +38,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
   WalletChallenge? _selectedChallenge;
   String? _lastSyncedConfig;
   int _selectedNavigationIndex = 0;
+  final BannerAdWidget _bannerAd = const BannerAdWidget();
 
   @override
   void initState() {
@@ -151,7 +153,6 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final propaganda = BannerAdWidget();
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
@@ -214,53 +215,66 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
               label: AppLocalizations.of(context).history,
             ),
             NavigationDestination(
+              icon: const Icon(Icons.device_hub_outlined),
+              selectedIcon: const Icon(Icons.device_hub),
+              label: AppLocalizations.of(context).menuPool,
+            ),
+            NavigationDestination(
               icon: const Icon(Icons.settings_outlined),
               selectedIcon: const Icon(Icons.settings),
               label: AppLocalizations.of(context).settings,
             ),
           ],
         ),
-        body:
-            _selectedNavigationIndex == 0
-                ? _buildHomeTab(propaganda)
-                : _selectedNavigationIndex == 1
-                ? const HistoryScreen(showAppBar: false)
-                : const SettingsScreen(showAppBar: false),
+        body: Column(
+          children: [
+            _buildBannerAd(),
+            Expanded(child: _buildCurrentScreen()),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildBannerAd() {
+    return Container(
+      height: 50,
+      color: Colors.grey.withAlpha(25),
+      child: Center(child: _bannerAd),
+    );
+  }
+
+  Widget _buildCurrentScreen() {
+    return switch (_selectedNavigationIndex) {
+      1 => const HistoryScreen(showAppBar: false),
+      2 => const PoolScreen(showAppBar: false),
+      3 => const SettingsScreen(showAppBar: false),
+      _ => _buildHomeTab(),
+    };
   }
 
   String _navigationTitle(BuildContext context) {
     return switch (_selectedNavigationIndex) {
       1 => AppLocalizations.of(context).history,
-      2 => AppLocalizations.of(context).settings,
+      2 => AppLocalizations.of(context).menuPool,
+      3 => AppLocalizations.of(context).settings,
       _ => 'Bit Finder',
     };
   }
 
-  Widget _buildHomeTab(BannerAdWidget propaganda) {
-    return Column(
-          children: [
-            // Espaço reservado para banner ad
-            Container(
-              height: 50,
-              color: Colors.grey.withAlpha(25),
-              child: Center(child: propaganda),
+  Widget _buildHomeTab() {
+    return Consumer<KeyFinderProvider>(
+      builder: (context, provider, child) {
+        // Se está rodando, mostra apenas o status
+        if (provider.isRunning) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [_buildStatusSection(provider)],
             ),
-            // Conteúdo principal
-            Expanded(
-              child: Consumer<KeyFinderProvider>(
-                builder: (context, provider, child) {
-                  // Se está rodando, mostra apenas o status
-                  if (provider.isRunning) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [_buildStatusSection(provider)],
-                      ),
-                    );
-                  }
+          );
+        }
 
                   // Se não está rodando, mostra tudo
                   return SingleChildScrollView(
@@ -337,11 +351,8 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                       ],
                     ),
                   );
-                },
-              ),
-            ),
-          ],
-        );
+      },
+    );
   }
 
   Widget _buildSearchFloatingActionButton(KeyFinderProvider provider) {
@@ -929,7 +940,7 @@ class _KeyFinderScreenState extends State<KeyFinderScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            setState(() => _selectedNavigationIndex = 2);
+                            setState(() => _selectedNavigationIndex = 3);
                           },
                           child: Text(AppLocalizations.of(context).settings),
                         ),
