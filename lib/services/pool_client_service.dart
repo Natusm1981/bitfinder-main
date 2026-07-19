@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,9 +32,12 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   BigInt _rangeKeysChecked = BigInt.zero;
   BigInt _totalKeysChecked = BigInt.zero;
   double _speed = 0;
+  int _thermalStatus = 0;
+  double? _batteryTemperatureCelsius;
   String? _errorMessage;
   String? _appVersion;
   String? _hostVersion;
+  final List<TemperatureSample> _temperatureHistory = [];
 
   PoolClientService() {
     WidgetsBinding.instance.addObserver(this);
@@ -54,6 +56,10 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   BigInt get rangeKeysChecked => _rangeKeysChecked;
   BigInt get totalKeysChecked => _totalKeysChecked;
   double get speed => _speed;
+  int get thermalStatus => _thermalStatus;
+  double? get batteryTemperatureCelsius => _batteryTemperatureCelsius;
+  List<TemperatureSample> get temperatureHistory =>
+      List.unmodifiable(_temperatureHistory);
   String? get errorMessage => _errorMessage;
   String? get appVersion => _appVersion;
   String? get hostVersion => _hostVersion;
@@ -120,6 +126,9 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _currentRangeEnd = null;
     _rangeKeysChecked = BigInt.zero;
     _speed = 0;
+    _thermalStatus = 0;
+    _batteryTemperatureCelsius = null;
+    _temperatureHistory.clear();
     _status = PoolWorkerStatus.disconnected;
     await WakelockPlus.disable();
     notifyListeners();
@@ -206,6 +215,23 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _keyFinder = KeyFinder(searchConfig);
     _keyFinder!.onStatus = (status) {
       _speed = status.speed * 1000000;
+      _thermalStatus = status.thermalStatus;
+      _batteryTemperatureCelsius = status.batteryTemperatureCelsius;
+      final temperature = status.batteryTemperatureCelsius;
+      if (temperature != null) {
+        _temperatureHistory.add(
+          TemperatureSample(
+            celsius: temperature,
+            timestamp: status.timestamp,
+          ),
+        );
+        if (_temperatureHistory.length > 120) {
+          _temperatureHistory.removeRange(
+            0,
+            _temperatureHistory.length - 120,
+          );
+        }
+      }
       _sendProgress();
       notifyListeners();
     };

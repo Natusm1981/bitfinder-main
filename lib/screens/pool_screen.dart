@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
 import '../providers/key_finder_provider.dart';
 import '../providers/performance_provider.dart';
@@ -97,7 +100,6 @@ class _PoolClientTabState extends State<_PoolClientTab> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
     final client = context.watch<PoolClientService>();
     final performance = context.watch<PerformanceProvider>();
     final connected = client.isConnected;
@@ -111,183 +113,26 @@ class _PoolClientTabState extends State<_PoolClientTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        connected ? Icons.link : Icons.link_off,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          localizations.poolClientWorker,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _hostController,
-                    enabled: !connected,
-                    decoration: InputDecoration(
-                      labelText: localizations.poolHostIp,
-                      prefixIcon: const Icon(Icons.router),
-                      border: const OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.url,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _portController,
-                          enabled: !connected,
-                          decoration: InputDecoration(
-                            labelText: localizations.poolPort,
-                            prefixIcon: const Icon(Icons.numbers),
-                            border: const OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _deviceNameController,
-                          enabled: !connected,
-                          decoration: InputDecoration(
-                            labelText: localizations.poolDeviceName,
-                            prefixIcon: const Icon(Icons.smartphone),
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${localizations.cpuThreads}: $numThreads',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed:
-                            connected || numThreads <= 1
-                                ? null
-                                : () => setState(
-                                  () => _numThreads = numThreads - 1,
-                                ),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      IconButton(
-                        onPressed:
-                            connected || numThreads >= performance.maxThreads
-                                ? null
-                                : () => setState(
-                                  () => _numThreads = numThreads + 1,
-                                ),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: numThreads.toDouble(),
-                    min: 1,
-                    max: performance.maxThreads.toDouble(),
-                    divisions: performance.maxThreads > 1
-                        ? performance.maxThreads - 1
-                        : null,
-                    label: numThreads.toString(),
-                    onChanged:
-                        connected
-                            ? null
-                            : (value) => setState(
-                              () => _numThreads = value.round(),
-                            ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed:
-                        client.status == PoolWorkerStatus.connecting
-                            ? null
-                            : connected
-                            ? () => client.disconnect()
-                            : () => _connect(client),
-                    icon: Icon(connected ? Icons.close : Icons.play_arrow),
-                    label: Text(
-                      connected
-                          ? localizations.poolDisconnect
-                          : localizations.poolConnect,
-                    ),
-                  ),
-                  if (client.errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      '${localizations.poolConnectionError}: ${client.errorMessage}',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    ),
-                  ],
-                ],
+          connected
+              ? _ConnectedClientSummary(
+                client: client,
+                numThreads: numThreads,
+                statusLabel: _workerStatusLabel(context, client.status),
+              )
+              : _ClientConnectionForm(
+                hostController: _hostController,
+                portController: _portController,
+                deviceNameController: _deviceNameController,
+                numThreads: numThreads,
+                maxThreads: performance.maxThreads,
+                isConnecting: client.status == PoolWorkerStatus.connecting,
+                errorMessage: client.errorMessage,
+                onThreadsChanged: (value) => setState(() => _numThreads = value),
+                onConnect: () => _connect(client),
               ),
-            ),
-          ),
           const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    localizations.status,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    label: localizations.status,
-                    value: _workerStatusLabel(context, client.status),
-                  ),
-                  _InfoRow(
-                    label: localizations.poolHostAddress,
-                    value:
-                        client.host == null
-                            ? '-'
-                            : '${client.host}:${client.port}',
-                  ),
-                  _InfoRow(
-                    label: localizations.poolCurrentRange,
-                    value: client.currentRangeId ?? '-',
-                  ),
-                  _InfoRow(
-                    label: localizations.keysChecked,
-                    value: _PoolHostTab._formatBigInt(client.totalKeysChecked),
-                  ),
-                  _InfoRow(
-                    label: localizations.speed,
-                    value: _PoolHostTab._formatSpeed(client.speed),
-                  ),
-                  if (client.currentRangeStart != null &&
-                      client.currentRangeEnd != null)
-                    _InfoRow(
-                      label: localizations.keyspace,
-                      value:
-                          '${client.currentRangeStart!.toRadixString(16)}:${client.currentRangeEnd!.toRadixString(16)}',
-                    ),
-                ],
-              ),
-            ),
-          ),
+          if (connected)
+            TemperatureMonitorCard(samples: client.temperatureHistory),
         ],
       ),
     );
@@ -520,6 +365,321 @@ class _PoolHostTab extends StatelessWidget {
   }
 }
 
+class _ClientConnectionForm extends StatelessWidget {
+  final TextEditingController hostController;
+  final TextEditingController portController;
+  final TextEditingController deviceNameController;
+  final int numThreads;
+  final int maxThreads;
+  final bool isConnecting;
+  final String? errorMessage;
+  final ValueChanged<int> onThreadsChanged;
+  final VoidCallback onConnect;
+
+  const _ClientConnectionForm({
+    required this.hostController,
+    required this.portController,
+    required this.deviceNameController,
+    required this.numThreads,
+    required this.maxThreads,
+    required this.isConnecting,
+    required this.onThreadsChanged,
+    required this.onConnect,
+    this.errorMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.link_off, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    localizations.poolClientWorker,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: hostController,
+              decoration: InputDecoration(
+                labelText: localizations.poolHostIp,
+                prefixIcon: const Icon(Icons.router),
+                border: const OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.url,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: portController,
+                    decoration: InputDecoration(
+                      labelText: localizations.poolPort,
+                      prefixIcon: const Icon(Icons.numbers),
+                      border: const OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: deviceNameController,
+                    decoration: InputDecoration(
+                      labelText: localizations.poolDeviceName,
+                      prefixIcon: const Icon(Icons.smartphone),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${localizations.cpuThreads}: $numThreads',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                IconButton(
+                  onPressed:
+                      numThreads <= 1
+                          ? null
+                          : () => onThreadsChanged(numThreads - 1),
+                  icon: const Icon(Icons.remove),
+                ),
+                IconButton(
+                  onPressed:
+                      numThreads >= maxThreads
+                          ? null
+                          : () => onThreadsChanged(numThreads + 1),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            Slider(
+              value: numThreads.toDouble(),
+              min: 1,
+              max: maxThreads.toDouble(),
+              divisions: maxThreads > 1 ? maxThreads - 1 : null,
+              label: numThreads.toString(),
+              onChanged: (value) => onThreadsChanged(value.round()),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: isConnecting ? null : onConnect,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(localizations.poolConnect),
+            ),
+            if (errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                '${localizations.poolConnectionError}: $errorMessage',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConnectedClientSummary extends StatelessWidget {
+  final PoolClientService client;
+  final int numThreads;
+  final String statusLabel;
+
+  const _ConnectedClientSummary({
+    required this.client,
+    required this.numThreads,
+    required this.statusLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final temperature = client.batteryTemperatureCelsius;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.link, color: colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    client.host == null ? statusLabel : '${client.host}:${client.port}',
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: () => client.disconnect(),
+                  icon: const Icon(Icons.close, size: 18),
+                  label: Text(localizations.poolDisconnect),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _MetricChip(label: localizations.status, value: statusLabel),
+                _MetricChip(
+                  label: localizations.speed,
+                  value: _PoolHostTab._formatSpeed(client.speed),
+                ),
+                _MetricChip(
+                  label: localizations.keysChecked,
+                  value: _PoolHostTab._formatBigInt(client.totalKeysChecked),
+                ),
+                _MetricChip(
+                  label: localizations.cpuThreads,
+                  value: numThreads.toString(),
+                ),
+                _MetricChip(
+                  label: localizations.temperature,
+                  value:
+                      temperature == null
+                          ? localizations.unavailable
+                          : '${temperature.toStringAsFixed(1)} °C',
+                ),
+                _MetricChip(
+                  label: localizations.poolCurrentRange,
+                  value: client.currentRangeId ?? '-',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetricChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withAlpha(110),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.labelLarge,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TemperatureMonitorCard extends StatelessWidget {
+  final List<TemperatureSample> samples;
+
+  const TemperatureMonitorCard({super.key, required this.samples});
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
+    return Container(
+      height: 150,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(90),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.thermostat, size: 18, color: Colors.deepOrange),
+              const SizedBox(width: 6),
+              Text(
+                localizations.temperatureMonitor,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const Spacer(),
+              if (samples.isNotEmpty)
+                Text(
+                  '${samples.last.celsius.toStringAsFixed(1)} °C',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepOrange,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child:
+                samples.length < 2
+                    ? Center(
+                      child: Text(
+                        localizations.poolCollectingTemperature,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    )
+                    : RepaintBoundary(
+                      child: CustomPaint(
+                        painter: _TemperatureChartPainter(samples),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ClientTile extends StatelessWidget {
   final PoolClientInfo client;
 
@@ -547,6 +707,108 @@ class _ClientTile extends StatelessWidget {
       trailing: Text(_PoolHostTab._formatSpeed(client.speed)),
     );
   }
+}
+
+class _TemperatureChartPainter extends CustomPainter {
+  final List<TemperatureSample> samples;
+
+  const _TemperatureChartPainter(this.samples);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (samples.length < 2 || size.width <= 0 || size.height <= 0) return;
+
+    final values = samples.map((sample) => sample.celsius).toList();
+    final minValue = values.reduce(math.min);
+    final maxValue = values.reduce(math.max);
+    final lowerBound = math.max(0.0, minValue - 2.0);
+    final upperBound = maxValue + 2.0;
+    final range = math.max(1.0, upperBound - lowerBound);
+
+    final gridPaint =
+        Paint()
+          ..color = Colors.grey.withAlpha(70)
+          ..strokeWidth = 1;
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.right,
+    );
+
+    const labelWidth = 42.0;
+    final chartRect = Rect.fromLTWH(
+      labelWidth,
+      0,
+      size.width - labelWidth,
+      size.height - 14,
+    );
+
+    for (var i = 0; i <= 2; i++) {
+      final y = chartRect.top + chartRect.height * i / 2;
+      canvas.drawLine(
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+      final label = upperBound - range * i / 2;
+      textPainter.text = TextSpan(
+        text: label.toStringAsFixed(0),
+        style: const TextStyle(color: Colors.grey, fontSize: 10),
+      );
+      textPainter.layout(minWidth: 0, maxWidth: labelWidth - 6);
+      textPainter.paint(
+        canvas,
+        Offset(labelWidth - textPainter.width - 6, y - 6),
+      );
+    }
+
+    final linePaint =
+        Paint()
+          ..color = Colors.deepOrange
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+    final fillPaint =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.deepOrange.withAlpha(80),
+              Colors.deepOrange.withAlpha(0),
+            ],
+          ).createShader(chartRect);
+
+    Offset pointFor(int index, double value) {
+      final x = chartRect.left + chartRect.width * index / (samples.length - 1);
+      final normalized = (value - lowerBound) / range;
+      final y = chartRect.bottom - chartRect.height * normalized;
+      return Offset(x, y.clamp(chartRect.top, chartRect.bottom));
+    }
+
+    final path = Path();
+    final fillPath = Path();
+    for (var i = 0; i < samples.length; i++) {
+      final point = pointFor(i, samples[i].celsius);
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+        fillPath.moveTo(point.dx, chartRect.bottom);
+        fillPath.lineTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+        fillPath.lineTo(point.dx, point.dy);
+      }
+    }
+    fillPath.lineTo(chartRect.right, chartRect.bottom);
+    fillPath.close();
+
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TemperatureChartPainter oldDelegate) =>
+      oldDelegate.samples != samples;
 }
 
 class _InfoRow extends StatelessWidget {

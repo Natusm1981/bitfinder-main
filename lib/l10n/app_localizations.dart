@@ -99,6 +99,8 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['pool_client_connecting']!;
   String get poolClientCompleted =>
       _localizedValues[locale.languageCode]!['pool_client_completed']!;
+  String get poolCollectingTemperature =>
+      _localizedValues[locale.languageCode]!['pool_collecting_temperature']!;
 
   // Key Finder Screen
   String get targetAddress =>
@@ -459,6 +461,7 @@ class AppLocalizations {
       'pool_connection_error': 'Erro de conexão',
       'pool_client_connecting': 'Conectando',
       'pool_client_completed': 'Concluído',
+      'pool_collecting_temperature': 'Coletando leituras...',
       'about_app': 'Sobre o Aplicativo',
       'key': 'Chave',
       'about_content':
@@ -700,6 +703,7 @@ class AppLocalizations {
       'pool_connection_error': 'Connection error',
       'pool_client_connecting': 'Connecting',
       'pool_client_completed': 'Completed',
+      'pool_collecting_temperature': 'Collecting readings...',
       'about_app': 'About the App',
       'about_content':
           'Bit Finder is a replica of the BitCrack KeyFinder software, '
@@ -952,6 +956,7 @@ class AppLocalizations {
       'pool_connection_error': 'Error de conexión',
       'pool_client_connecting': 'Conectando',
       'pool_client_completed': 'Completado',
+      'pool_collecting_temperature': 'Recolectando lecturas...',
       'about_app': 'Acerca del Aplicativo',
 
       'target_address': 'Dirección Objetivo',
