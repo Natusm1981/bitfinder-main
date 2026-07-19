@@ -3,13 +3,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
 
-class PoolServerService extends ChangeNotifier {
+class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
   static const int defaultPort = 40404;
   static const int defaultBatchSize = 2000000;
   static const String _storageKey = 'pool_server_completed_ranges';
@@ -27,6 +29,10 @@ class PoolServerService extends ChangeNotifier {
   final Map<String, StreamSubscription<String>> _subscriptions = {};
   final Map<String, PoolClientInfo> _clients = {};
   final Map<String, PoolRangeInfo> _ranges = {};
+
+  PoolServerService() {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   bool get isRunning => _serverSocket != null;
   bool get isStarting => _isStarting;
@@ -109,6 +115,7 @@ class PoolServerService extends ChangeNotifier {
       );
       _hostAddress = await _resolveHostAddress();
       _serverSocket!.listen(_handleSocket, onError: _handleServerError);
+      await WakelockPlus.enable();
     } catch (error) {
       _errorMessage = error.toString();
       await stop();
@@ -131,6 +138,7 @@ class PoolServerService extends ChangeNotifier {
     _sockets.clear();
     _clients.clear();
     _hostAddress = null;
+    await WakelockPlus.disable();
     notifyListeners();
   }
 
@@ -457,7 +465,18 @@ class PoolServerService extends ChangeNotifier {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(stop());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(stop());
     super.dispose();
   }

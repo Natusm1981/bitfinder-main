@@ -3,15 +3,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
 import '../services/key_finder.dart';
 import '../utils/address_util.dart';
 
-class PoolClientService extends ChangeNotifier {
+class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
   static const String _lastHostKey = 'pool_client_last_host';
   static const String _lastPortKey = 'pool_client_last_port';
 
@@ -34,6 +36,10 @@ class PoolClientService extends ChangeNotifier {
   String? _errorMessage;
   String? _appVersion;
   String? _hostVersion;
+
+  PoolClientService() {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   PoolWorkerStatus get status => _status;
   bool get isConnected => _socket != null;
@@ -72,6 +78,7 @@ class PoolClientService extends ChangeNotifier {
       final socket = await Socket.connect(_host, port, timeout: const Duration(seconds: 8));
       _socket = socket;
       await _saveLastEndpoint(_host!, port);
+      await WakelockPlus.enable();
       _status = PoolWorkerStatus.connected;
       _subscription = utf8.decoder
           .bind(socket)
@@ -114,6 +121,7 @@ class PoolClientService extends ChangeNotifier {
     _rangeKeysChecked = BigInt.zero;
     _speed = 0;
     _status = PoolWorkerStatus.disconnected;
+    await WakelockPlus.disable();
     notifyListeners();
   }
 
@@ -327,7 +335,18 @@ class PoolClientService extends ChangeNotifier {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(disconnect());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(disconnect());
     super.dispose();
   }
