@@ -2,6 +2,15 @@ enum PoolClientStatus { connected, searching, idle, disconnected }
 
 enum PoolRangeStatus { assigned, completed, failed }
 
+enum PoolWorkerStatus {
+  disconnected,
+  connecting,
+  connected,
+  searching,
+  idle,
+  completed,
+}
+
 class PoolClientInfo {
   final String id;
   final String deviceName;
@@ -175,4 +184,16 @@ class PoolServerConfig {
     'port': port,
     'batchSize': batchSize,
   };
+
+  factory PoolServerConfig.fromJson(Map<String, dynamic> json) {
+    return PoolServerConfig(
+      startKey: BigInt.parse(json['startKey'] as String),
+      endKey: BigInt.parse(json['endKey'] as String),
+      stride: BigInt.parse(json['stride'] as String),
+      compressionIndex: json['compressionIndex'] as int? ?? 0,
+      targets: List<String>.from(json['targets'] as List<dynamic>? ?? const []),
+      port: json['port'] as int? ?? 40404,
+      batchSize: json['batchSize'] as int? ?? 100000,
+    );
+  }
 }

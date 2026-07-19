@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/pool_models.dart';
 import '../providers/key_finder_provider.dart';
+import '../services/pool_client_service.dart';
 import '../services/pool_server_service.dart';
 
 class PoolScreen extends StatelessWidget {
@@ -38,11 +39,7 @@ class PoolScreen extends StatelessWidget {
             child: TabBarView(
               children: [
                 const _PoolHostTab(),
-                _ComingSoonPanel(
-                  icon: Icons.devices_other,
-                  title: localizations.poolClients,
-                  message: localizations.comingSoon,
-                ),
+                const _PoolClientTab(),
               ],
             ),
           ),
@@ -59,6 +56,201 @@ class PoolScreen extends StatelessWidget {
       ),
       body: content,
     );
+  }
+}
+
+class _PoolClientTab extends StatefulWidget {
+  const _PoolClientTab();
+
+  @override
+  State<_PoolClientTab> createState() => _PoolClientTabState();
+}
+
+class _PoolClientTabState extends State<_PoolClientTab> {
+  final _hostController = TextEditingController();
+  final _portController = TextEditingController(
+    text: PoolServerService.defaultPort.toString(),
+  );
+  final _deviceNameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _hostController.dispose();
+    _portController.dispose();
+    _deviceNameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    final client = context.watch<PoolClientService>();
+    final connected = client.isConnected;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        connected ? Icons.link : Icons.link_off,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          localizations.poolClientWorker,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _hostController,
+                    enabled: !connected,
+                    decoration: InputDecoration(
+                      labelText: localizations.poolHostIp,
+                      prefixIcon: const Icon(Icons.router),
+                      border: const OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.url,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _portController,
+                          enabled: !connected,
+                          decoration: InputDecoration(
+                            labelText: localizations.poolPort,
+                            prefixIcon: const Icon(Icons.numbers),
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _deviceNameController,
+                          enabled: !connected,
+                          decoration: InputDecoration(
+                            labelText: localizations.poolDeviceName,
+                            prefixIcon: const Icon(Icons.smartphone),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed:
+                        client.status == PoolWorkerStatus.connecting
+                            ? null
+                            : connected
+                            ? () => client.disconnect()
+                            : () => _connect(client),
+                    icon: Icon(connected ? Icons.close : Icons.play_arrow),
+                    label: Text(
+                      connected
+                          ? localizations.poolDisconnect
+                          : localizations.poolConnect,
+                    ),
+                  ),
+                  if (client.errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '${localizations.poolConnectionError}: ${client.errorMessage}',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    localizations.status,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  _InfoRow(
+                    label: localizations.status,
+                    value: _workerStatusLabel(context, client.status),
+                  ),
+                  _InfoRow(
+                    label: localizations.poolHostAddress,
+                    value:
+                        client.host == null
+                            ? '-'
+                            : '${client.host}:${client.port}',
+                  ),
+                  _InfoRow(
+                    label: localizations.poolCurrentRange,
+                    value: client.currentRangeId ?? '-',
+                  ),
+                  _InfoRow(
+                    label: localizations.keysChecked,
+                    value: _PoolHostTab._formatBigInt(client.totalKeysChecked),
+                  ),
+                  _InfoRow(
+                    label: localizations.speed,
+                    value: _PoolHostTab._formatSpeed(client.speed),
+                  ),
+                  if (client.currentRangeStart != null &&
+                      client.currentRangeEnd != null)
+                    _InfoRow(
+                      label: localizations.keyspace,
+                      value:
+                          '${client.currentRangeStart!.toRadixString(16)}:${client.currentRangeEnd!.toRadixString(16)}',
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _connect(PoolClientService client) {
+    final port =
+        int.tryParse(_portController.text.trim()) ??
+        PoolServerService.defaultPort;
+    client.connect(
+      host: _hostController.text,
+      port: port,
+      deviceName: _deviceNameController.text,
+    );
+  }
+
+  String _workerStatusLabel(BuildContext context, PoolWorkerStatus status) {
+    final localizations = AppLocalizations.of(context);
+    return switch (status) {
+      PoolWorkerStatus.disconnected => localizations.poolClientDisconnected,
+      PoolWorkerStatus.connecting => localizations.poolClientConnecting,
+      PoolWorkerStatus.connected => localizations.poolClientConnected,
+      PoolWorkerStatus.searching => localizations.poolClientSearching,
+      PoolWorkerStatus.idle => localizations.poolClientIdle,
+      PoolWorkerStatus.completed => localizations.poolClientCompleted,
+    };
   }
 }
 
@@ -302,49 +494,6 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ComingSoonPanel extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-
-  const _ComingSoonPanel({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

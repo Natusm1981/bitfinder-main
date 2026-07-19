@@ -82,6 +82,23 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['pool_client_idle']!;
   String get poolClientDisconnected =>
       _localizedValues[locale.languageCode]!['pool_client_disconnected']!;
+  String get poolClientWorker =>
+      _localizedValues[locale.languageCode]!['pool_client_worker']!;
+  String get poolHostIp =>
+      _localizedValues[locale.languageCode]!['pool_host_ip']!;
+  String get poolPort => _localizedValues[locale.languageCode]!['pool_port']!;
+  String get poolDeviceName =>
+      _localizedValues[locale.languageCode]!['pool_device_name']!;
+  String get poolConnect =>
+      _localizedValues[locale.languageCode]!['pool_connect']!;
+  String get poolDisconnect =>
+      _localizedValues[locale.languageCode]!['pool_disconnect']!;
+  String get poolConnectionError =>
+      _localizedValues[locale.languageCode]!['pool_connection_error']!;
+  String get poolClientConnecting =>
+      _localizedValues[locale.languageCode]!['pool_client_connecting']!;
+  String get poolClientCompleted =>
+      _localizedValues[locale.languageCode]!['pool_client_completed']!;
 
   // Key Finder Screen
   String get targetAddress =>
@@ -433,6 +450,15 @@ class AppLocalizations {
       'pool_client_searching': 'Buscando',
       'pool_client_idle': 'Ocioso',
       'pool_client_disconnected': 'Desconectado',
+      'pool_client_worker': 'Cliente da Pool',
+      'pool_host_ip': 'IP do Host',
+      'pool_port': 'Porta',
+      'pool_device_name': 'Nome do dispositivo',
+      'pool_connect': 'Conectar',
+      'pool_disconnect': 'Desconectar',
+      'pool_connection_error': 'Erro de conexão',
+      'pool_client_connecting': 'Conectando',
+      'pool_client_completed': 'Concluído',
       'about_app': 'Sobre o Aplicativo',
       'key': 'Chave',
       'about_content':
@@ -665,6 +691,15 @@ class AppLocalizations {
       'pool_client_searching': 'Searching',
       'pool_client_idle': 'Idle',
       'pool_client_disconnected': 'Disconnected',
+      'pool_client_worker': 'Pool Client',
+      'pool_host_ip': 'Host IP',
+      'pool_port': 'Port',
+      'pool_device_name': 'Device name',
+      'pool_connect': 'Connect',
+      'pool_disconnect': 'Disconnect',
+      'pool_connection_error': 'Connection error',
+      'pool_client_connecting': 'Connecting',
+      'pool_client_completed': 'Completed',
       'about_app': 'About the App',
       'about_content':
           'Bit Finder is a replica of the BitCrack KeyFinder software, '
@@ -908,6 +943,15 @@ class AppLocalizations {
       'pool_client_searching': 'Buscando',
       'pool_client_idle': 'Inactivo',
       'pool_client_disconnected': 'Desconectado',
+      'pool_client_worker': 'Cliente de la Pool',
+      'pool_host_ip': 'IP del Host',
+      'pool_port': 'Puerto',
+      'pool_device_name': 'Nombre del dispositivo',
+      'pool_connect': 'Conectar',
+      'pool_disconnect': 'Desconectar',
+      'pool_connection_error': 'Error de conexión',
+      'pool_client_connecting': 'Conectando',
+      'pool_client_completed': 'Completado',
       'about_app': 'Acerca del Aplicativo',
 
       'target_address': 'Dirección Objetivo',

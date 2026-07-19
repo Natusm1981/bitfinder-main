@@ -14,6 +14,7 @@ import 'providers/locale_provider.dart';
 import 'screens/key_finder_screen.dart';
 import 'screens/about_screen.dart';
 import 'services/app_open_ad_service.dart';
+import 'services/pool_client_service.dart';
 import 'services/pool_server_service.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/fast_crypto.dart';
@@ -92,6 +93,7 @@ class _BitFinderAppState extends State<BitFinderApp>
         ChangeNotifierProvider(create: (_) => PerformanceProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => PoolServerService()),
+        ChangeNotifierProvider(create: (_) => PoolClientService()),
       ],
       child: Consumer2<ThemeProvider, LocaleProvider>(
         builder: (context, themeProvider, localeProvider, child) {
