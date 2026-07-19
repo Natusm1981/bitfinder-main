@@ -603,6 +603,25 @@ class _ClientConnectionForm extends StatelessWidget {
   }
 }
 
+class _DialogInfoLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _DialogInfoLine({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ],
+    );
+  }
+}
+
 class _ConnectedClientSummary extends StatelessWidget {
   final PoolClientService client;
   final int numThreads;

@@ -101,6 +101,16 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['pool_client_completed']!;
   String get poolCollectingTemperature =>
       _localizedValues[locale.languageCode]!['pool_collecting_temperature']!;
+  String get poolHostFirstRunTitle =>
+      _localizedValues[locale.languageCode]!['pool_host_first_run_title']!;
+  String poolHostFirstRunConnection(String endpoint) =>
+      _localizedValues[locale.languageCode]!['pool_host_first_run_connection']!
+          .replaceAll('{endpoint}', endpoint);
+  String get poolHostFirstRunCompatibility =>
+      _localizedValues[locale.languageCode]!['pool_host_first_run_compatibility']!;
+  String poolHostFirstRunRangeMode(String mode) =>
+      _localizedValues[locale.languageCode]!['pool_host_first_run_range_mode']!
+          .replaceAll('{mode}', mode);
 
   // Key Finder Screen
   String get targetAddress =>
@@ -462,6 +472,13 @@ class AppLocalizations {
       'pool_client_connecting': 'Conectando',
       'pool_client_completed': 'Concluído',
       'pool_collecting_temperature': 'Coletando leituras...',
+      'pool_host_first_run_title': 'Host da Pool iniciado',
+      'pool_host_first_run_connection':
+          'No cliente, entre na aba Clientes e conecte usando {endpoint}. Os aparelhos precisam estar na mesma rede Wi-Fi.',
+      'pool_host_first_run_compatibility':
+          'A conexão só será aceita se os dois aparelhos estiverem com a mesma versão do app.',
+      'pool_host_first_run_range_mode':
+          'O modo de envio de ranges foi definido como {mode}. Para alterar, pare o Host e escolha o modo na tela anterior antes de iniciar novamente.',
       'about_app': 'Sobre o Aplicativo',
       'key': 'Chave',
       'about_content':
@@ -704,6 +721,13 @@ class AppLocalizations {
       'pool_client_connecting': 'Connecting',
       'pool_client_completed': 'Completed',
       'pool_collecting_temperature': 'Collecting readings...',
+      'pool_host_first_run_title': 'Pool Host started',
+      'pool_host_first_run_connection':
+          'On the client, open the Clients tab and connect using {endpoint}. Devices must be on the same Wi-Fi network.',
+      'pool_host_first_run_compatibility':
+          'The connection will only be accepted if both devices are running the same app version.',
+      'pool_host_first_run_range_mode':
+          'Range distribution is set to {mode}. To change it, stop the Host and choose the mode on the previous screen before starting again.',
       'about_app': 'About the App',
       'about_content':
           'Bit Finder is a replica of the BitCrack KeyFinder software, '
@@ -957,6 +981,13 @@ class AppLocalizations {
       'pool_client_connecting': 'Conectando',
       'pool_client_completed': 'Completado',
       'pool_collecting_temperature': 'Recolectando lecturas...',
+      'pool_host_first_run_title': 'Host de la Pool iniciado',
+      'pool_host_first_run_connection':
+          'En el cliente, abra la pestaña Clientes y conecte usando {endpoint}. Los dispositivos deben estar en la misma red Wi-Fi.',
+      'pool_host_first_run_compatibility':
+          'La conexión solo será aceptada si ambos dispositivos tienen la misma versión de la app.',
+      'pool_host_first_run_range_mode':
+          'El modo de envío de rangos quedó definido como {mode}. Para cambiarlo, detenga el Host y elija el modo en la pantalla anterior antes de iniciar nuevamente.',
       'about_app': 'Acerca del Aplicativo',
 
       'target_address': 'Dirección Objetivo',
