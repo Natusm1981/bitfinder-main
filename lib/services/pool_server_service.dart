@@ -31,7 +31,10 @@ class PoolServerService extends ChangeNotifier {
   String? get hostAddress => _hostAddress;
   String? get errorMessage => _errorMessage;
   PoolServerConfig? get config => _config;
-  List<PoolClientInfo> get clients => _clients.values.toList(growable: false);
+  List<PoolClientInfo> get clients =>
+      _clients.values
+          .where((client) => client.status != PoolClientStatus.disconnected)
+          .toList(growable: false);
   List<PoolRangeInfo> get ranges => _ranges.values.toList(growable: false);
 
   BigInt get completedKeys {
