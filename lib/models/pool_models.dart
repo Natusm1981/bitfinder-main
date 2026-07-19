@@ -166,7 +166,7 @@ class PoolServerConfig {
     required this.compressionIndex,
     required this.targets,
     this.port = 40404,
-    this.batchSize = 100000,
+    this.batchSize = 2000000,
   });
 
   BigInt get totalKeys =>
@@ -193,7 +193,7 @@ class PoolServerConfig {
       compressionIndex: json['compressionIndex'] as int? ?? 0,
       targets: List<String>.from(json['targets'] as List<dynamic>? ?? const []),
       port: json['port'] as int? ?? 40404,
-      batchSize: json['batchSize'] as int? ?? 100000,
+      batchSize: json['batchSize'] as int? ?? 2000000,
     );
   }
 }

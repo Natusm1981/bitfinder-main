@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/key_search_types.dart';
@@ -10,7 +11,7 @@ import '../models/pool_models.dart';
 
 class PoolServerService extends ChangeNotifier {
   static const int defaultPort = 40404;
-  static const int defaultBatchSize = 100000;
+  static const int defaultBatchSize = 2000000;
   static const String _storageKey = 'pool_server_completed_ranges';
 
   ServerSocket? _serverSocket;
@@ -20,6 +21,7 @@ class PoolServerService extends ChangeNotifier {
   String? _hostAddress;
   String? _errorMessage;
   bool _isStarting = false;
+  String? _appVersion;
 
   final Map<String, Socket> _sockets = {};
   final Map<String, StreamSubscription<String>> _subscriptions = {};
@@ -92,6 +94,7 @@ class PoolServerService extends ChangeNotifier {
     _isStarting = true;
     _errorMessage = null;
     _config = config;
+    _appVersion = await _loadAppVersion();
     _nextSequenceIndex = BigInt.zero;
     _nextRangeId = 0;
     _ranges.clear();
@@ -151,6 +154,7 @@ class PoolServerService extends ChangeNotifier {
     _send(socket, {
       'type': 'welcome',
       'clientId': clientId,
+      'appVersion': _appVersion,
       'config': _config?.toJson(),
     });
 
@@ -198,6 +202,18 @@ class PoolServerService extends ChangeNotifier {
       status: PoolClientStatus.idle,
       lastSeenAt: DateTime.now(),
     );
+    final clientVersion = message['appVersion'] as String?;
+    if (clientVersion != null &&
+        _appVersion != null &&
+        clientVersion != _appVersion) {
+      _send(_sockets[clientId]!, {
+        'type': 'version_mismatch',
+        'hostVersion': _appVersion,
+        'clientVersion': clientVersion,
+      });
+      _disconnectClient(clientId);
+      return;
+    }
     notifyListeners();
   }
 
@@ -423,6 +439,11 @@ class PoolServerService extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  Future<String> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    return '${info.version}+${info.buildNumber}';
   }
 
   double _ratio(BigInt numerator, BigInt denominator) {

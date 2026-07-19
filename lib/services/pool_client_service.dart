@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/key_search_types.dart';
 import '../models/pool_models.dart';
@@ -10,6 +12,9 @@ import '../services/key_finder.dart';
 import '../utils/address_util.dart';
 
 class PoolClientService extends ChangeNotifier {
+  static const String _lastHostKey = 'pool_client_last_host';
+  static const String _lastPortKey = 'pool_client_last_port';
+
   Socket? _socket;
   StreamSubscription<String>? _subscription;
   Timer? _heartbeatTimer;
@@ -19,6 +24,7 @@ class PoolClientService extends ChangeNotifier {
   String? _clientId;
   String? _host;
   int? _port;
+  int _numThreads = 1;
   String? _currentRangeId;
   BigInt? _currentRangeStart;
   BigInt? _currentRangeEnd;
@@ -26,6 +32,8 @@ class PoolClientService extends ChangeNotifier {
   BigInt _totalKeysChecked = BigInt.zero;
   double _speed = 0;
   String? _errorMessage;
+  String? _appVersion;
+  String? _hostVersion;
 
   PoolWorkerStatus get status => _status;
   bool get isConnected => _socket != null;
@@ -33,6 +41,7 @@ class PoolClientService extends ChangeNotifier {
   String? get clientId => _clientId;
   String? get host => _host;
   int? get port => _port;
+  int get numThreads => _numThreads;
   String? get currentRangeId => _currentRangeId;
   BigInt? get currentRangeStart => _currentRangeStart;
   BigInt? get currentRangeEnd => _currentRangeEnd;
@@ -40,16 +49,21 @@ class PoolClientService extends ChangeNotifier {
   BigInt get totalKeysChecked => _totalKeysChecked;
   double get speed => _speed;
   String? get errorMessage => _errorMessage;
+  String? get appVersion => _appVersion;
+  String? get hostVersion => _hostVersion;
 
   Future<void> connect({
     required String host,
     required int port,
+    required int numThreads,
     String? deviceName,
   }) async {
     if (_socket != null || _status == PoolWorkerStatus.connecting) return;
 
     _host = host.trim();
     _port = port;
+    _numThreads = numThreads;
+    _appVersion = await _loadAppVersion();
     _status = PoolWorkerStatus.connecting;
     _errorMessage = null;
     notifyListeners();
@@ -57,6 +71,7 @@ class PoolClientService extends ChangeNotifier {
     try {
       final socket = await Socket.connect(_host, port, timeout: const Duration(seconds: 8));
       _socket = socket;
+      await _saveLastEndpoint(_host!, port);
       _status = PoolWorkerStatus.connected;
       _subscription = utf8.decoder
           .bind(socket)
@@ -69,6 +84,7 @@ class PoolClientService extends ChangeNotifier {
           );
       _send({
         'type': 'hello',
+        'appVersion': _appVersion,
         'deviceName': deviceName?.trim().isNotEmpty == true
             ? deviceName!.trim()
             : Platform.localHostname,
@@ -106,6 +122,14 @@ class PoolClientService extends ChangeNotifier {
     _send({'type': 'assign_request'});
   }
 
+  Future<({String? host, int? port})> loadLastEndpoint() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      host: prefs.getString(_lastHostKey),
+      port: prefs.getInt(_lastPortKey),
+    );
+  }
+
   void _handleLine(String line) {
     try {
       final decoded = jsonDecode(line);
@@ -114,6 +138,8 @@ class PoolClientService extends ChangeNotifier {
       switch (type) {
         case 'welcome':
           _handleWelcome(decoded);
+        case 'version_mismatch':
+          _handleVersionMismatch(decoded);
         case 'work_assigned':
           unawaited(_handleWorkAssigned(decoded));
         case 'no_work':
@@ -130,6 +156,14 @@ class PoolClientService extends ChangeNotifier {
 
   void _handleWelcome(Map<String, dynamic> message) {
     _clientId = message['clientId'] as String?;
+    _hostVersion = message['appVersion'] as String?;
+    if (_hostVersion != null &&
+        _appVersion != null &&
+        _hostVersion != _appVersion) {
+      _errorMessage = 'Version mismatch: host $_hostVersion, client $_appVersion';
+      unawaited(disconnect());
+      return;
+    }
     final configJson = message['config'];
     if (configJson is Map<String, dynamic>) {
       _serverConfig = PoolServerConfig.fromJson(configJson);
@@ -137,6 +171,13 @@ class PoolClientService extends ChangeNotifier {
     _status = PoolWorkerStatus.idle;
     notifyListeners();
     requestWork();
+  }
+
+  void _handleVersionMismatch(Map<String, dynamic> message) {
+    _hostVersion = message['hostVersion'] as String?;
+    final clientVersion = message['clientVersion'] as String? ?? _appVersion;
+    _errorMessage = 'Version mismatch: host $_hostVersion, client $clientVersion';
+    unawaited(disconnect());
   }
 
   Future<void> _handleWorkAssigned(Map<String, dynamic> message) async {
@@ -229,7 +270,7 @@ class PoolClientService extends ChangeNotifier {
       searchMode: SearchMode.sequential,
       targets: targets,
       numThreads: Platform.numberOfProcessors > 1
-          ? Platform.numberOfProcessors - 1
+          ? _numThreads.clamp(1, Platform.numberOfProcessors)
           : 1,
     );
   }
@@ -272,6 +313,17 @@ class PoolClientService extends ChangeNotifier {
   void _handleDisconnect(String? error) {
     _errorMessage = error;
     unawaited(disconnect());
+  }
+
+  Future<void> _saveLastEndpoint(String host, int port) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastHostKey, host);
+    await prefs.setInt(_lastPortKey, port);
+  }
+
+  Future<String> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    return '${info.version}+${info.buildNumber}';
   }
 
   @override

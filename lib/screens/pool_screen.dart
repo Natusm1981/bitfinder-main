@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/pool_models.dart';
 import '../providers/key_finder_provider.dart';
+import '../providers/performance_provider.dart';
 import '../services/pool_client_service.dart';
 import '../services/pool_server_service.dart';
 
@@ -72,6 +73,19 @@ class _PoolClientTabState extends State<_PoolClientTab> {
     text: PoolServerService.defaultPort.toString(),
   );
   final _deviceNameController = TextEditingController();
+  int? _numThreads;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadLastEndpoint();
+      final performance = context.read<PerformanceProvider>();
+      if (mounted) {
+        setState(() => _numThreads = performance.numThreads);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -85,7 +99,12 @@ class _PoolClientTabState extends State<_PoolClientTab> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final client = context.watch<PoolClientService>();
+    final performance = context.watch<PerformanceProvider>();
     final connected = client.isConnected;
+    final numThreads = (_numThreads ?? performance.numThreads).clamp(
+      1,
+      performance.maxThreads,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
@@ -152,6 +171,50 @@ class _PoolClientTabState extends State<_PoolClientTab> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${localizations.cpuThreads}: $numThreads',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed:
+                            connected || numThreads <= 1
+                                ? null
+                                : () => setState(
+                                  () => _numThreads = numThreads - 1,
+                                ),
+                        icon: const Icon(Icons.remove),
+                      ),
+                      IconButton(
+                        onPressed:
+                            connected || numThreads >= performance.maxThreads
+                                ? null
+                                : () => setState(
+                                  () => _numThreads = numThreads + 1,
+                                ),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: numThreads.toDouble(),
+                    min: 1,
+                    max: performance.maxThreads.toDouble(),
+                    divisions: performance.maxThreads > 1
+                        ? performance.maxThreads - 1
+                        : null,
+                    label: numThreads.toString(),
+                    onChanged:
+                        connected
+                            ? null
+                            : (value) => setState(
+                              () => _numThreads = value.round(),
+                            ),
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
@@ -234,11 +297,30 @@ class _PoolClientTabState extends State<_PoolClientTab> {
     final port =
         int.tryParse(_portController.text.trim()) ??
         PoolServerService.defaultPort;
+    final performance = context.read<PerformanceProvider>();
+    final numThreads = (_numThreads ?? performance.numThreads).clamp(
+      1,
+      performance.maxThreads,
+    );
     client.connect(
       host: _hostController.text,
       port: port,
+      numThreads: numThreads,
       deviceName: _deviceNameController.text,
     );
+  }
+
+  Future<void> _loadLastEndpoint() async {
+    final endpoint = await context.read<PoolClientService>().loadLastEndpoint();
+    if (!mounted) return;
+    final host = endpoint.host;
+    final port = endpoint.port;
+    if (host != null && host.isNotEmpty) {
+      _hostController.text = host;
+    }
+    if (port != null) {
+      _portController.text = port.toString();
+    }
   }
 
   String _workerStatusLabel(BuildContext context, PoolWorkerStatus status) {
