@@ -184,6 +184,7 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     final configJson = message['config'];
     if (configJson is Map<String, dynamic>) {
       _serverConfig = PoolServerConfig.fromJson(configJson);
+      _port = _serverConfig!.port;
     }
     _status = PoolWorkerStatus.idle;
     notifyListeners();

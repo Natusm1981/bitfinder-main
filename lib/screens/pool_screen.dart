@@ -702,7 +702,7 @@ class _ConnectedClientSummary extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    client.host == null ? statusLabel : '${client.host}:${client.port}',
+                    client.host ?? statusLabel,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
@@ -727,17 +727,14 @@ class _ConnectedClientSummary extends StatelessWidget {
                         value: statusLabel,
                       ),
                       _CompactMetricRow(
+                        label: localizations.poolHostIp,
+                        value: client.host ?? '-',
+                      ),
+                      _CompactMetricRow(
                         label: localizations.keysChecked,
                         value: _PoolHostTabState._formatBigInt(
                           client.totalKeysChecked,
                         ),
-                      ),
-                      _CompactMetricRow(
-                        label: localizations.temperature,
-                        value:
-                            temperature == null
-                                ? localizations.unavailable
-                                : '${temperature.toStringAsFixed(1)} °C',
                       ),
                     ],
                   ),
@@ -751,12 +748,16 @@ class _ConnectedClientSummary extends StatelessWidget {
                         value: _PoolHostTabState._formatSpeed(client.speed),
                       ),
                       _CompactMetricRow(
-                        label: localizations.cpuThreads,
-                        value: numThreads.toString(),
+                        label: localizations.poolPort,
+                        value: (client.port ?? PoolServerService.defaultPort)
+                            .toString(),
                       ),
                       _CompactMetricRow(
-                        label: localizations.poolCurrentRange,
-                        value: client.currentRangeId ?? '-',
+                        label: localizations.temperature,
+                        value:
+                            temperature == null
+                                ? localizations.unavailable
+                                : '${temperature.toStringAsFixed(1)} °C',
                       ),
                     ],
                   ),
