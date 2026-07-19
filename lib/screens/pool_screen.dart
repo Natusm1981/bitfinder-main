@@ -371,7 +371,9 @@ class _PoolHostTabState extends State<_PoolHostTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    localizations.progress,
+                    keyFinder.config.challengeId == null
+                        ? localizations.progress
+                        : '${localizations.progress} - ${localizations.challenge} #${keyFinder.config.challengeId}',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 12),

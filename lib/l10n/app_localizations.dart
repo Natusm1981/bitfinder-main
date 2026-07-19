@@ -111,6 +111,20 @@ class AppLocalizations {
   String poolHostFirstRunRangeMode(String mode) =>
       _localizedValues[locale.languageCode]!['pool_host_first_run_range_mode']!
           .replaceAll('{mode}', mode);
+  String get poolInfoTitle =>
+      _localizedValues[locale.languageCode]!['pool_info_title']!;
+  String get poolInfoSubtitle =>
+      _localizedValues[locale.languageCode]!['pool_info_subtitle']!;
+  String get poolInfoHost =>
+      _localizedValues[locale.languageCode]!['pool_info_host']!;
+  String get poolInfoClient =>
+      _localizedValues[locale.languageCode]!['pool_info_client']!;
+  String get poolInfoCompatibility =>
+      _localizedValues[locale.languageCode]!['pool_info_compatibility']!;
+  String get poolInfoRanges =>
+      _localizedValues[locale.languageCode]!['pool_info_ranges']!;
+  String get poolInfoForeground =>
+      _localizedValues[locale.languageCode]!['pool_info_foreground']!;
 
   // Key Finder Screen
   String get targetAddress =>
@@ -479,6 +493,18 @@ class AppLocalizations {
           'A conexão só será aceita se os dois aparelhos estiverem com a mesma versão do app.',
       'pool_host_first_run_range_mode':
           'O modo de envio de ranges foi definido como {mode}. Para alterar, pare o Host e escolha o modo na tela anterior antes de iniciar novamente.',
+      'pool_info_title': 'Informações da Pool',
+      'pool_info_subtitle': 'Host, cliente e conexão local',
+      'pool_info_host':
+          'Host: abre o servidor na rede Wi-Fi local, organiza o progresso e distribui ranges para os clientes.',
+      'pool_info_client':
+          'Cliente: conecta no IP e porta do Host, recebe um range por vez e devolve progresso e conclusão.',
+      'pool_info_compatibility':
+          'Os aparelhos precisam estar na mesma rede Wi-Fi e com a mesma versão do app.',
+      'pool_info_ranges':
+          'O modo de envio dos ranges, sequencial ou aleatório, deve ser escolhido antes de iniciar o Host.',
+      'pool_info_foreground':
+          'A Pool funciona somente em primeiro plano. Enquanto ativa, a tela fica sempre ligada.',
       'about_app': 'Sobre o Aplicativo',
       'key': 'Chave',
       'about_content':
@@ -728,6 +754,18 @@ class AppLocalizations {
           'The connection will only be accepted if both devices are running the same app version.',
       'pool_host_first_run_range_mode':
           'Range distribution is set to {mode}. To change it, stop the Host and choose the mode on the previous screen before starting again.',
+      'pool_info_title': 'Pool Information',
+      'pool_info_subtitle': 'Host, client, and local connection',
+      'pool_info_host':
+          'Host: opens the server on the local Wi-Fi network, organizes progress, and distributes ranges to clients.',
+      'pool_info_client':
+          'Client: connects to the Host IP and port, receives one range at a time, and reports progress and completion.',
+      'pool_info_compatibility':
+          'Devices must be on the same Wi-Fi network and running the same app version.',
+      'pool_info_ranges':
+          'Range distribution mode, sequential or random, must be selected before starting the Host.',
+      'pool_info_foreground':
+          'Pool runs only in the foreground. While active, the screen stays awake.',
       'about_app': 'About the App',
       'about_content':
           'Bit Finder is a replica of the BitCrack KeyFinder software, '
@@ -988,6 +1026,18 @@ class AppLocalizations {
           'La conexión solo será aceptada si ambos dispositivos tienen la misma versión de la app.',
       'pool_host_first_run_range_mode':
           'El modo de envío de rangos quedó definido como {mode}. Para cambiarlo, detenga el Host y elija el modo en la pantalla anterior antes de iniciar nuevamente.',
+      'pool_info_title': 'Información de la Pool',
+      'pool_info_subtitle': 'Host, cliente y conexión local',
+      'pool_info_host':
+          'Host: abre el servidor en la red Wi-Fi local, organiza el progreso y distribuye rangos a los clientes.',
+      'pool_info_client':
+          'Cliente: conecta al IP y puerto del Host, recibe un rango por vez y devuelve progreso y finalización.',
+      'pool_info_compatibility':
+          'Los dispositivos deben estar en la misma red Wi-Fi y con la misma versión de la app.',
+      'pool_info_ranges':
+          'El modo de envío de rangos, secuencial o aleatorio, debe elegirse antes de iniciar el Host.',
+      'pool_info_foreground':
+          'La Pool funciona solo en primer plano. Mientras está activa, la pantalla permanece encendida.',
       'about_app': 'Acerca del Aplicativo',
 
       'target_address': 'Dirección Objetivo',

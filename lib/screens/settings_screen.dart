@@ -165,6 +165,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.device_hub_outlined),
+            title: Text(AppLocalizations.of(context).poolInfoTitle),
+            subtitle: Text(AppLocalizations.of(context).poolInfoSubtitle),
+            trailing: const Icon(Icons.info_outline),
+            onTap: () => _showPoolInfoDialog(context),
+          ),
           const Divider(),
           _buildSectionHeader(AppLocalizations.of(context).history),
           Consumer<HistoryProvider>(
@@ -374,6 +381,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showPoolInfoDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(l10n.poolInfoTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PoolInfoLine(
+                icon: Icons.wifi_tethering,
+                text: l10n.poolInfoHost,
+              ),
+              const SizedBox(height: 12),
+              _PoolInfoLine(
+                icon: Icons.devices_other,
+                text: l10n.poolInfoClient,
+              ),
+              const SizedBox(height: 12),
+              _PoolInfoLine(
+                icon: Icons.verified_user_outlined,
+                text: l10n.poolInfoCompatibility,
+              ),
+              const SizedBox(height: 12),
+              _PoolInfoLine(
+                icon: Icons.call_split,
+                text: l10n.poolInfoRanges,
+              ),
+              const SizedBox(height: 12),
+              _PoolInfoLine(
+                icon: Icons.visibility,
+                text: l10n.poolInfoForeground,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.ok),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showClearHistoryDialog(
     BuildContext context,
     HistoryProvider historyProvider,
@@ -407,6 +463,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+    );
+  }
+}
+
+class _PoolInfoLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _PoolInfoLine({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ],
     );
   }
 }
