@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/key_search_types.dart';
@@ -181,8 +182,17 @@ class _PoolClientTabState extends State<_PoolClientTab> {
   }
 }
 
-class _PoolHostTab extends StatelessWidget {
+class _PoolHostTab extends StatefulWidget {
   const _PoolHostTab();
+
+  @override
+  State<_PoolHostTab> createState() => _PoolHostTabState();
+}
+
+class _PoolHostTabState extends State<_PoolHostTab> {
+  static const String _firstHostInfoSeenKey = 'pool_first_host_info_seen';
+
+  PoolDistributionMode _distributionMode = PoolDistributionMode.sequential;
 
   @override
   Widget build(BuildContext context) {
@@ -223,11 +233,13 @@ class _PoolHostTab extends StatelessWidget {
                                 ? null
                                 : server.isRunning
                                 ? () => server.stop()
-                                : canStart
-                                ? () => server.startFromSearchConfig(
-                                  keyFinder.config,
-                                )
-                                : null,
+                                 : canStart
+                                 ? () => _startHost(
+                                   context,
+                                   server,
+                                   keyFinder,
+                                 )
+                                 : null,
                         icon: Icon(
                           server.isRunning ? Icons.stop : Icons.play_arrow,
                         ),
@@ -238,6 +250,30 @@ class _PoolHostTab extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<PoolDistributionMode>(
+                    segments: [
+                      ButtonSegment(
+                        value: PoolDistributionMode.sequential,
+                        icon: const Icon(Icons.format_list_numbered),
+                        label: Text(localizations.sequential),
+                      ),
+                      ButtonSegment(
+                        value: PoolDistributionMode.random,
+                        icon: const Icon(Icons.shuffle),
+                        label: Text(localizations.random),
+                      ),
+                    ],
+                    selected: {_distributionMode},
+                    onSelectionChanged:
+                        server.isRunning
+                            ? null
+                            : (selection) {
+                              setState(
+                                () => _distributionMode = selection.first,
+                              );
+                            },
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -344,6 +380,73 @@ class _PoolHostTab extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _startHost(
+    BuildContext context,
+    PoolServerService server,
+    KeyFinderProvider keyFinder,
+  ) async {
+    await server.startFromSearchConfig(
+      keyFinder.config,
+      distributionMode: _distributionMode,
+    );
+    if (!context.mounted || !server.isRunning) return;
+    await _showFirstHostInfoIfNeeded(context, server);
+  }
+
+  Future<void> _showFirstHostInfoIfNeeded(
+    BuildContext context,
+    PoolServerService server,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadySeen = prefs.getBool(_firstHostInfoSeenKey) ?? false;
+    if (alreadySeen || !context.mounted) return;
+
+    await prefs.setBool(_firstHostInfoSeenKey, true);
+    if (!context.mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+    final modeLabel = _distributionMode == PoolDistributionMode.random
+        ? localizations.random
+        : localizations.sequential;
+    final endpoint =
+        '${server.hostAddress ?? '0.0.0.0'}:${server.config?.port ?? PoolServerService.defaultPort}';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(localizations.poolHostFirstRunTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DialogInfoLine(
+                icon: Icons.wifi,
+                text: localizations.poolHostFirstRunConnection(endpoint),
+              ),
+              const SizedBox(height: 12),
+              _DialogInfoLine(
+                icon: Icons.verified_user_outlined,
+                text: localizations.poolHostFirstRunCompatibility,
+              ),
+              const SizedBox(height: 12),
+              _DialogInfoLine(
+                icon: Icons.call_split,
+                text: localizations.poolHostFirstRunRangeMode(modeLabel),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(localizations.ok),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -542,33 +645,50 @@ class _ConnectedClientSummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _MetricChip(label: localizations.status, value: statusLabel),
-                _MetricChip(
-                  label: localizations.speed,
-                  value: _PoolHostTab._formatSpeed(client.speed),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _CompactMetricRow(
+                        label: localizations.status,
+                        value: statusLabel,
+                      ),
+                      _CompactMetricRow(
+                        label: localizations.keysChecked,
+                        value: _PoolHostTabState._formatBigInt(
+                          client.totalKeysChecked,
+                        ),
+                      ),
+                      _CompactMetricRow(
+                        label: localizations.temperature,
+                        value:
+                            temperature == null
+                                ? localizations.unavailable
+                                : '${temperature.toStringAsFixed(1)} °C',
+                      ),
+                    ],
+                  ),
                 ),
-                _MetricChip(
-                  label: localizations.keysChecked,
-                  value: _PoolHostTab._formatBigInt(client.totalKeysChecked),
-                ),
-                _MetricChip(
-                  label: localizations.cpuThreads,
-                  value: numThreads.toString(),
-                ),
-                _MetricChip(
-                  label: localizations.temperature,
-                  value:
-                      temperature == null
-                          ? localizations.unavailable
-                          : '${temperature.toStringAsFixed(1)} °C',
-                ),
-                _MetricChip(
-                  label: localizations.poolCurrentRange,
-                  value: client.currentRangeId ?? '-',
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _CompactMetricRow(
+                        label: localizations.speed,
+                        value: _PoolHostTabState._formatSpeed(client.speed),
+                      ),
+                      _CompactMetricRow(
+                        label: localizations.cpuThreads,
+                        value: numThreads.toString(),
+                      ),
+                      _CompactMetricRow(
+                        label: localizations.poolCurrentRange,
+                        value: client.currentRangeId ?? '-',
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -579,38 +699,41 @@ class _ConnectedClientSummary extends StatelessWidget {
   }
 }
 
-class _MetricChip extends StatelessWidget {
+class _CompactMetricRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _MetricChip({required this.label, required this.value});
+  const _CompactMetricRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withAlpha(110),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          Expanded(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.labelLarge,
-            overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -704,7 +827,7 @@ class _ClientTile extends StatelessWidget {
             ? '${client.address} - $statusLabel'
             : '${client.address} - $statusLabel - ${localizations.poolCurrentRange}: ${client.currentRangeId}',
       ),
-      trailing: Text(_PoolHostTab._formatSpeed(client.speed)),
+      trailing: Text(_PoolHostTabState._formatSpeed(client.speed)),
     );
   }
 }

@@ -2,6 +2,8 @@ enum PoolClientStatus { connected, searching, idle, disconnected }
 
 enum PoolRangeStatus { assigned, completed, failed }
 
+enum PoolDistributionMode { sequential, random }
+
 enum PoolWorkerStatus {
   disconnected,
   connecting,
@@ -158,6 +160,7 @@ class PoolServerConfig {
   final List<String> targets;
   final int port;
   final int batchSize;
+  final PoolDistributionMode distributionMode;
 
   const PoolServerConfig({
     required this.startKey,
@@ -165,6 +168,7 @@ class PoolServerConfig {
     required this.stride,
     required this.compressionIndex,
     required this.targets,
+    this.distributionMode = PoolDistributionMode.sequential,
     this.port = 40404,
     this.batchSize = 2000000,
   });
@@ -183,9 +187,11 @@ class PoolServerConfig {
     'targets': targets,
     'port': port,
     'batchSize': batchSize,
+    'distributionMode': distributionMode.index,
   };
 
   factory PoolServerConfig.fromJson(Map<String, dynamic> json) {
+    final distributionModeIndex = json['distributionMode'] as int? ?? 0;
     return PoolServerConfig(
       startKey: BigInt.parse(json['startKey'] as String),
       endKey: BigInt.parse(json['endKey'] as String),
@@ -194,6 +200,10 @@ class PoolServerConfig {
       targets: List<String>.from(json['targets'] as List<dynamic>? ?? const []),
       port: json['port'] as int? ?? 40404,
       batchSize: json['batchSize'] as int? ?? 2000000,
+      distributionMode: PoolDistributionMode.values[distributionModeIndex.clamp(
+        0,
+        PoolDistributionMode.values.length - 1,
+      )],
     );
   }
 }

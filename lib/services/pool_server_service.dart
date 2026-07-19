@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -17,6 +18,7 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
 
   ServerSocket? _serverSocket;
   PoolServerConfig? _config;
+  final Random _random = Random.secure();
   BigInt _nextSequenceIndex = BigInt.zero;
   int _nextRangeId = 0;
   String? _hostAddress;
@@ -80,13 +82,17 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
   int get assignedRangeCount =>
       _ranges.values.where((range) => range.status == PoolRangeStatus.assigned).length;
 
-  Future<void> startFromSearchConfig(KeySearchConfig searchConfig) async {
+  Future<void> startFromSearchConfig(
+    KeySearchConfig searchConfig, {
+    PoolDistributionMode distributionMode = PoolDistributionMode.sequential,
+  }) async {
     final config = PoolServerConfig(
       startKey: searchConfig.startKey,
       endKey: searchConfig.endKey,
       stride: searchConfig.stride,
       compressionIndex: searchConfig.compression.index,
       targets: searchConfig.targets.map((target) => target.address).toList(),
+      distributionMode: distributionMode,
       port: defaultPort,
       batchSize: defaultBatchSize,
     );
@@ -326,38 +332,108 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   PoolRangeInfo? _allocateRange(PoolServerConfig config, String clientId) {
+    if (config.distributionMode == PoolDistributionMode.random) {
+      return _allocateRandomRange(config, clientId);
+    }
+    return _allocateSequentialRange(config, clientId);
+  }
+
+  PoolRangeInfo? _allocateSequentialRange(
+    PoolServerConfig config,
+    String clientId,
+  ) {
     final total = config.totalKeys;
     while (_nextSequenceIndex < total) {
       final sequenceStart = _nextSequenceIndex;
-      final remaining = total - sequenceStart;
-      final count =
-          remaining > BigInt.from(config.batchSize)
-              ? config.batchSize
-              : remaining.toInt();
+      final count = _countForSequenceStart(config, sequenceStart);
       _nextSequenceIndex += BigInt.from(count);
-      final startKey = config.startKey + sequenceStart * config.stride;
-      final endKey = startKey + BigInt.from(count - 1) * config.stride;
-      final id = 'range-${_nextRangeId++}';
-      final alreadyCompleted = _ranges.values.any(
-        (range) =>
-            range.status == PoolRangeStatus.completed &&
-            range.startKey == startKey &&
-            range.endKey == endKey,
-      );
-      if (alreadyCompleted) continue;
-      return PoolRangeInfo(
-        id: id,
-        startKey: startKey,
-        endKey: endKey,
-        keyCount: BigInt.from(count),
-        status: PoolRangeStatus.assigned,
-        assignedClientId: clientId,
-        keysChecked: BigInt.zero,
-        createdAt: DateTime.now(),
-        assignedAt: DateTime.now(),
-      );
+      final range = _buildRange(config, clientId, sequenceStart, count);
+      if (_rangeAlreadyAllocated(range)) continue;
+      return range;
     }
     return null;
+  }
+
+  PoolRangeInfo? _allocateRandomRange(
+    PoolServerConfig config,
+    String clientId,
+  ) {
+    final batchCount = _batchCount(config);
+    if (batchCount <= BigInt.zero) return null;
+
+    for (var attempt = 0; attempt < 1000; attempt++) {
+      final batchIndex = _randomBelow(batchCount);
+      final sequenceStart = batchIndex * BigInt.from(config.batchSize);
+      final count = _countForSequenceStart(config, sequenceStart);
+      final range = _buildRange(config, clientId, sequenceStart, count);
+      if (!_rangeAlreadyAllocated(range)) return range;
+    }
+
+    for (var batchIndex = BigInt.zero;
+        batchIndex < batchCount;
+        batchIndex += BigInt.one) {
+      final sequenceStart = batchIndex * BigInt.from(config.batchSize);
+      final count = _countForSequenceStart(config, sequenceStart);
+      final range = _buildRange(config, clientId, sequenceStart, count);
+      if (!_rangeAlreadyAllocated(range)) return range;
+    }
+    return null;
+  }
+
+  PoolRangeInfo _buildRange(
+    PoolServerConfig config,
+    String clientId,
+    BigInt sequenceStart,
+    int count,
+  ) {
+    final startKey = config.startKey + sequenceStart * config.stride;
+    final endKey = startKey + BigInt.from(count - 1) * config.stride;
+    return PoolRangeInfo(
+      id: 'range-${_nextRangeId++}',
+      startKey: startKey,
+      endKey: endKey,
+      keyCount: BigInt.from(count),
+      status: PoolRangeStatus.assigned,
+      assignedClientId: clientId,
+      keysChecked: BigInt.zero,
+      createdAt: DateTime.now(),
+      assignedAt: DateTime.now(),
+    );
+  }
+
+  bool _rangeAlreadyAllocated(PoolRangeInfo candidate) {
+    return _ranges.values.any(
+      (range) =>
+          range.status != PoolRangeStatus.failed &&
+          range.startKey == candidate.startKey &&
+          range.endKey == candidate.endKey,
+    );
+  }
+
+  int _countForSequenceStart(PoolServerConfig config, BigInt sequenceStart) {
+    final remaining = config.totalKeys - sequenceStart;
+    return remaining > BigInt.from(config.batchSize)
+        ? config.batchSize
+        : remaining.toInt();
+  }
+
+  BigInt _batchCount(PoolServerConfig config) {
+    final total = config.totalKeys;
+    if (total <= BigInt.zero) return BigInt.zero;
+    return (total + BigInt.from(config.batchSize - 1)) ~/
+        BigInt.from(config.batchSize);
+  }
+
+  BigInt _randomBelow(BigInt upperExclusive) {
+    if (upperExclusive <= BigInt.one) return BigInt.zero;
+    final byteCount = (upperExclusive.bitLength + 7) ~/ 8;
+    while (true) {
+      var value = BigInt.zero;
+      for (var i = 0; i < byteCount; i++) {
+        value = (value << 8) | BigInt.from(_random.nextInt(256));
+      }
+      if (value < upperExclusive) return value;
+    }
   }
 
   void _disconnectClient(String clientId) {
