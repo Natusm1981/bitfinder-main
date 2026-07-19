@@ -12,29 +12,75 @@ import '../providers/performance_provider.dart';
 import '../services/pool_client_service.dart';
 import '../services/pool_server_service.dart';
 
-class PoolScreen extends StatelessWidget {
+class PoolScreen extends StatefulWidget {
   final bool showAppBar;
 
   const PoolScreen({super.key, this.showAppBar = true});
 
   @override
+  State<PoolScreen> createState() => _PoolScreenState();
+}
+
+class _PoolScreenState extends State<PoolScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_keepHostTabWhenServerRuns);
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_keepHostTabWhenServerRuns);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _keepHostTabWhenServerRuns() {
+    final server = context.read<PoolServerService>();
+    if (server.isRunning && _tabController.index != 0) {
+      _tabController.animateTo(0);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
+    final server = context.watch<PoolServerService>();
 
-    final content = DefaultTabController(
-      length: 2,
-      child: Column(
+    if (server.isRunning && _tabController.index != 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _tabController.animateTo(0);
+      });
+    }
+
+    final content = Column(
         children: [
           Material(
             color: Theme.of(context).colorScheme.surface,
             child: TabBar(
+              controller: _tabController,
+              onTap: (index) {
+                if (server.isRunning && index == 1) {
+                  _tabController.animateTo(0);
+                }
+              },
               tabs: [
                 Tab(
                   icon: const Icon(Icons.wifi_tethering),
                   text: localizations.poolHost,
                 ),
                 Tab(
-                  icon: const Icon(Icons.devices_other),
+                  icon: Icon(
+                    Icons.devices_other,
+                    color:
+                        server.isRunning
+                            ? Theme.of(context).disabledColor
+                            : null,
+                  ),
                   text: localizations.poolClients,
                 ),
               ],
@@ -42,6 +88,11 @@ class PoolScreen extends StatelessWidget {
           ),
           Expanded(
             child: TabBarView(
+              controller: _tabController,
+              physics:
+                  server.isRunning
+                      ? const NeverScrollableScrollPhysics()
+                      : null,
               children: [
                 const _PoolHostTab(),
                 const _PoolClientTab(),
@@ -49,10 +100,9 @@ class PoolScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
 
-    if (!showAppBar) return content;
+    if (!widget.showAppBar) return content;
 
     return Scaffold(
       appBar: AppBar(
