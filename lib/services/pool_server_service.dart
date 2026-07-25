@@ -48,6 +48,12 @@ class PoolServerService extends ChangeNotifier with WidgetsBindingObserver {
     _historyProvider = provider;
   }
 
+  void clearFoundResult() {
+    if (_foundResult == null) return;
+    _foundResult = null;
+    notifyListeners();
+  }
+
   bool get isRunning => _serverSocket != null;
   bool get isStarting => _isStarting;
   String? get hostAddress => _hostAddress;

@@ -167,7 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.device_hub_outlined),
-            title: Text(AppLocalizations.of(context).poolInfoTitle),
+            title: Text(AppLocalizations.of(context).poolIntroTitle),
             subtitle: Text(AppLocalizations.of(context).poolInfoSubtitle),
             trailing: const Icon(Icons.info_outline),
             onTap: () => _showPoolInfoDialog(context),
@@ -388,36 +388,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(l10n.poolInfoTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _PoolInfoLine(
-                icon: Icons.wifi_tethering,
-                text: l10n.poolInfoHost,
-              ),
-              const SizedBox(height: 12),
-              _PoolInfoLine(
-                icon: Icons.devices_other,
-                text: l10n.poolInfoClient,
-              ),
-              const SizedBox(height: 12),
-              _PoolInfoLine(
-                icon: Icons.verified_user_outlined,
-                text: l10n.poolInfoCompatibility,
-              ),
-              const SizedBox(height: 12),
-              _PoolInfoLine(
-                icon: Icons.call_split,
-                text: l10n.poolInfoRanges,
-              ),
-              const SizedBox(height: 12),
-              _PoolInfoLine(
-                icon: Icons.visibility,
-                text: l10n.poolInfoForeground,
-              ),
-            ],
+          title: Text(l10n.poolIntroTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PoolInfoLine(
+                  icon: Icons.hub_outlined,
+                  text: l10n.poolIntroSummary,
+                ),
+                const SizedBox(height: 12),
+                _PoolInfoLine(
+                  icon: Icons.wifi_tethering,
+                  text: l10n.poolIntroHost,
+                ),
+                const SizedBox(height: 12),
+                _PoolInfoLine(
+                  icon: Icons.devices_other,
+                  text: l10n.poolIntroClients,
+                ),
+                const SizedBox(height: 12),
+                _PoolInfoLine(
+                  icon: Icons.account_tree_outlined,
+                  text: l10n.poolIntroArchitecture,
+                ),
+                const SizedBox(height: 12),
+                _PoolInfoLine(
+                  icon: Icons.tips_and_updates_outlined,
+                  text: l10n.poolIntroRecommendation,
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(

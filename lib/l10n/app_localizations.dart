@@ -107,7 +107,8 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['pool_host_first_run_connection']!
           .replaceAll('{endpoint}', endpoint);
   String get poolHostFirstRunCompatibility =>
-      _localizedValues[locale.languageCode]!['pool_host_first_run_compatibility']!;
+      _localizedValues[locale
+          .languageCode]!['pool_host_first_run_compatibility']!;
   String poolHostFirstRunRangeMode(String mode) =>
       _localizedValues[locale.languageCode]!['pool_host_first_run_range_mode']!
           .replaceAll('{mode}', mode);
@@ -125,6 +126,20 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['pool_info_ranges']!;
   String get poolInfoForeground =>
       _localizedValues[locale.languageCode]!['pool_info_foreground']!;
+  String get poolIntroTitle =>
+      _localizedValues[locale.languageCode]!['pool_intro_title']!;
+  String get poolIntroSummary =>
+      _localizedValues[locale.languageCode]!['pool_intro_summary']!;
+  String get poolIntroHost =>
+      _localizedValues[locale.languageCode]!['pool_intro_host']!;
+  String get poolIntroClients =>
+      _localizedValues[locale.languageCode]!['pool_intro_clients']!;
+  String get poolIntroArchitecture =>
+      _localizedValues[locale.languageCode]!['pool_intro_architecture']!;
+  String get poolIntroRecommendation =>
+      _localizedValues[locale.languageCode]!['pool_intro_recommendation']!;
+  String get poolSelectTargetWarning =>
+      _localizedValues[locale.languageCode]!['pool_select_target_warning']!;
 
   // Key Finder Screen
   String get targetAddress =>
@@ -505,6 +520,19 @@ class AppLocalizations {
           'O modo de envio dos ranges, sequencial ou aleatório, deve ser escolhido antes de iniciar o Host.',
       'pool_info_foreground':
           'A Pool funciona somente em primeiro plano. Enquanto ativa, a tela fica sempre ligada.',
+      'pool_intro_title': 'Como usar a Pool',
+      'pool_intro_summary':
+          'A Pool permite dividir a busca entre vários aparelhos na mesma rede Wi-Fi. Um aparelho organiza o trabalho e os outros ajudam a procurar.',
+      'pool_intro_host':
+          'Use somente um aparelho como Host. Ele é o servidor da Pool: mostra o endereço de conexão, distribui os ranges e acompanha o progresso.',
+      'pool_intro_clients':
+          'Instale o app nos outros aparelhos e use a aba Clientes para conectar ao endereço exibido no Host.',
+      'pool_intro_architecture':
+          'Exemplo: Celular A = Host. Celulares B, C e D = Clientes. Cada cliente recebe um pedaço diferente do range para evitar trabalho repetido.',
+      'pool_intro_recommendation':
+          'Escolha o modo de range no Host antes de iniciar. Mantenha todos na mesma rede Wi-Fi, com a mesma versão do app e em primeiro plano.',
+      'pool_select_target_warning':
+          'Selecione o endereço alvo na tela inicial. Depois, retorne para a tela da Pool para iniciar o Host.',
       'about_app': 'Sobre o Aplicativo',
       'key': 'Chave',
       'about_content':
@@ -722,7 +750,8 @@ class AppLocalizations {
       'pool_start_host': 'Start Host',
       'pool_stop_host': 'Stop Host',
       'pool_host_ready': 'Host is active on the local Wi-Fi network.',
-      'pool_host_stopped': 'Start the host to accept clients on the local network.',
+      'pool_host_stopped':
+          'Start the host to accept clients on the local network.',
       'pool_host_address': 'Host Address',
       'pool_use_current_search_config': 'Current configuration',
       'pool_server_error': 'Server error',
@@ -766,6 +795,19 @@ class AppLocalizations {
           'Range distribution mode, sequential or random, must be selected before starting the Host.',
       'pool_info_foreground':
           'Pool runs only in the foreground. While active, the screen stays awake.',
+      'pool_intro_title': 'How to use the Pool',
+      'pool_intro_summary':
+          'The Pool lets several devices on the same Wi-Fi network share the search. One device organizes the work and the others help search.',
+      'pool_intro_host':
+          'Use only one device as the Host. It is the Pool server: it shows the connection address, distributes ranges, and tracks progress.',
+      'pool_intro_clients':
+          'Install the app on the other devices and use the Clients tab to connect to the address shown by the Host.',
+      'pool_intro_architecture':
+          'Example: Phone A = Host. Phones B, C, and D = Clients. Each client receives a different piece of the range to avoid repeated work.',
+      'pool_intro_recommendation':
+          'Choose the range mode on the Host before starting. Keep all devices on the same Wi-Fi network, with the same app version, and in the foreground.',
+      'pool_select_target_warning':
+          'Select the target address on the Home screen. Then return to the Pool screen to start the Host.',
       'about_app': 'About the App',
       'about_content':
           'Bit Finder is a replica of the BitCrack KeyFinder software, '
@@ -994,7 +1036,8 @@ class AppLocalizations {
       'pool_start_host': 'Iniciar Host',
       'pool_stop_host': 'Detener Host',
       'pool_host_ready': 'Host activo en la red Wi-Fi local.',
-      'pool_host_stopped': 'Inicie el host para aceptar clientes en la red local.',
+      'pool_host_stopped':
+          'Inicie el host para aceptar clientes en la red local.',
       'pool_host_address': 'Dirección del Host',
       'pool_use_current_search_config': 'Configuración actual',
       'pool_server_error': 'Error del servidor',
@@ -1038,6 +1081,19 @@ class AppLocalizations {
           'El modo de envío de rangos, secuencial o aleatorio, debe elegirse antes de iniciar el Host.',
       'pool_info_foreground':
           'La Pool funciona solo en primer plano. Mientras está activa, la pantalla permanece encendida.',
+      'pool_intro_title': 'Cómo usar la Pool',
+      'pool_intro_summary':
+          'La Pool permite dividir la búsqueda entre varios dispositivos en la misma red Wi-Fi. Un dispositivo organiza el trabajo y los otros ayudan a buscar.',
+      'pool_intro_host':
+          'Use solo un dispositivo como Host. Es el servidor de la Pool: muestra la dirección de conexión, distribuye rangos y acompaña el progreso.',
+      'pool_intro_clients':
+          'Instale la app en los otros dispositivos y use la pestaña Clientes para conectar a la dirección mostrada por el Host.',
+      'pool_intro_architecture':
+          'Ejemplo: Celular A = Host. Celulares B, C y D = Clientes. Cada cliente recibe una parte diferente del rango para evitar trabajo repetido.',
+      'pool_intro_recommendation':
+          'Elija el modo de rango en el Host antes de iniciar. Mantenga todos los dispositivos en la misma red Wi-Fi, con la misma versión de la app y en primer plano.',
+      'pool_select_target_warning':
+          'Seleccione la dirección objetivo en la pantalla inicial. Luego vuelva a la pantalla de la Pool para iniciar el Host.',
       'about_app': 'Acerca del Aplicativo',
 
       'target_address': 'Dirección Objetivo',

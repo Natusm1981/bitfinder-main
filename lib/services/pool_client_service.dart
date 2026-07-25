@@ -58,6 +58,12 @@ class PoolClientService extends ChangeNotifier with WidgetsBindingObserver {
     _historyProvider = provider;
   }
 
+  void clearFoundResult() {
+    if (_foundResult == null) return;
+    _foundResult = null;
+    notifyListeners();
+  }
+
   PoolWorkerStatus get status => _status;
   bool get isConnected => _socket != null;
   bool get isSearching => _status == PoolWorkerStatus.searching;

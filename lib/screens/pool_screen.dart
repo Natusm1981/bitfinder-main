@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,8 @@ class PoolScreen extends StatefulWidget {
 
 class _PoolScreenState extends State<PoolScreen>
     with SingleTickerProviderStateMixin {
+  static const String _poolIntroSeenKey = 'pool_intro_seen';
+
   late final TabController _tabController;
   String? _shownFoundResultSignature;
 
@@ -45,6 +48,7 @@ class _PoolScreenState extends State<PoolScreen>
       context.read<PoolClientService>().setHistoryProvider(
         context.read<HistoryProvider>(),
       );
+      unawaited(_showPoolIntroIfNeeded());
     });
   }
 
@@ -77,57 +81,47 @@ class _PoolScreenState extends State<PoolScreen>
     _showPoolFoundDialogIfNeeded(foundResult);
 
     final content = Column(
-        children: [
-          Material(
-            color: Theme.of(context).colorScheme.surface,
-            child: TabBar(
-              controller: _tabController,
-              onTap: (index) {
-                if (server.isRunning && index == 1) {
-                  _tabController.animateTo(0);
-                }
-              },
-              tabs: [
-                Tab(
-                  icon: const Icon(Icons.wifi_tethering),
-                  text: localizations.poolHost,
+      children: [
+        Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: TabBar(
+            controller: _tabController,
+            onTap: (index) {
+              if (server.isRunning && index == 1) {
+                _tabController.animateTo(0);
+              }
+            },
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.wifi_tethering),
+                text: localizations.poolHost,
+              ),
+              Tab(
+                icon: Icon(
+                  Icons.devices_other,
+                  color:
+                      server.isRunning ? Theme.of(context).disabledColor : null,
                 ),
-                Tab(
-                  icon: Icon(
-                    Icons.devices_other,
-                    color:
-                        server.isRunning
-                            ? Theme.of(context).disabledColor
-                            : null,
-                  ),
-                  text: localizations.poolClients,
-                ),
-              ],
-            ),
+                text: localizations.poolClients,
+              ),
+            ],
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              physics:
-                  server.isRunning
-                      ? const NeverScrollableScrollPhysics()
-                      : null,
-              children: [
-                const _PoolHostTab(),
-                const _PoolClientTab(),
-              ],
-            ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            physics:
+                server.isRunning ? const NeverScrollableScrollPhysics() : null,
+            children: [const _PoolHostTab(), const _PoolClientTab()],
           ),
-        ],
+        ),
+      ],
     );
 
     if (!widget.showAppBar) return content;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(localizations.menuPool),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(localizations.menuPool), centerTitle: true),
       body: content,
     );
   }
@@ -139,8 +133,72 @@ class _PoolScreenState extends State<PoolScreen>
     _shownFoundResultSignature = signature;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      showPoolKeyFoundDialog(context, result);
+      unawaited(_showAndConsumeFoundResult(result));
     });
+  }
+
+  Future<void> _showPoolIntroIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadySeen = prefs.getBool(_poolIntroSeenKey) ?? false;
+    if (alreadySeen || !mounted) return;
+
+    await prefs.setBool(_poolIntroSeenKey, true);
+    if (!mounted) return;
+
+    final localizations = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(localizations.poolIntroTitle),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DialogInfoLine(
+                  icon: Icons.hub_outlined,
+                  text: localizations.poolIntroSummary,
+                ),
+                const SizedBox(height: 12),
+                _DialogInfoLine(
+                  icon: Icons.wifi_tethering,
+                  text: localizations.poolIntroHost,
+                ),
+                const SizedBox(height: 12),
+                _DialogInfoLine(
+                  icon: Icons.devices_other,
+                  text: localizations.poolIntroClients,
+                ),
+                const SizedBox(height: 12),
+                _DialogInfoLine(
+                  icon: Icons.account_tree_outlined,
+                  text: localizations.poolIntroArchitecture,
+                ),
+                const SizedBox(height: 12),
+                _DialogInfoLine(
+                  icon: Icons.tips_and_updates_outlined,
+                  text: localizations.poolIntroRecommendation,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(localizations.ok),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showAndConsumeFoundResult(KeySearchResult result) async {
+    await showPoolKeyFoundDialog(context, result);
+    if (!mounted) return;
+    context.read<PoolServerService>().clearFoundResult();
+    context.read<PoolClientService>().clearFoundResult();
   }
 }
 
@@ -365,7 +423,8 @@ class _PoolClientTabState extends State<_PoolClientTab> {
                 maxThreads: performance.maxThreads,
                 isConnecting: client.status == PoolWorkerStatus.connecting,
                 errorMessage: client.errorMessage,
-                onThreadsChanged: (value) => setState(() => _numThreads = value),
+                onThreadsChanged:
+                    (value) => setState(() => _numThreads = value),
                 onConnect: canUseClient ? () => _connect(client) : null,
               ),
           const SizedBox(height: 12),
@@ -476,13 +535,9 @@ class _PoolHostTabState extends State<_PoolHostTab> {
                                 ? null
                                 : server.isRunning
                                 ? () => server.stop()
-                                 : canStart && canUseHost
-                                 ? () => _startHost(
-                                   context,
-                                   server,
-                                   keyFinder,
-                                 )
-                                 : null,
+                                : canStart && canUseHost
+                                ? () => _startHost(context, server, keyFinder)
+                                : null,
                         icon: Icon(
                           server.isRunning ? Icons.stop : Icons.play_arrow,
                         ),
@@ -528,15 +583,19 @@ class _PoolHostTabState extends State<_PoolHostTab> {
                   if (!canStart && !server.isRunning) ...[
                     const SizedBox(height: 8),
                     Text(
-                      localizations.addTargetWarning,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      localizations.poolSelectTargetWarning,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                   if (server.errorMessage != null) ...[
                     const SizedBox(height: 8),
                     Text(
                       '${localizations.poolServerError}: ${server.errorMessage}',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                   if (server.isRunning) ...[
@@ -653,9 +712,10 @@ class _PoolHostTabState extends State<_PoolHostTab> {
     if (!context.mounted) return;
 
     final localizations = AppLocalizations.of(context);
-    final modeLabel = _distributionMode == PoolDistributionMode.random
-        ? localizations.random
-        : localizations.sequential;
+    final modeLabel =
+        _distributionMode == PoolDistributionMode.random
+            ? localizations.random
+            : localizations.sequential;
     final endpoint =
         '${server.hostAddress ?? '0.0.0.0'}:${server.config?.port ?? PoolServerService.defaultPort}';
 
@@ -748,7 +808,10 @@ class _ClientConnectionForm extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.link_off, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.link_off,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -942,8 +1005,9 @@ class _ConnectedClientSummary extends StatelessWidget {
                       ),
                       _CompactMetricRow(
                         label: localizations.poolPort,
-                        value: (client.port ?? PoolServerService.defaultPort)
-                            .toString(),
+                        value:
+                            (client.port ?? PoolServerService.defaultPort)
+                                .toString(),
                       ),
                       _CompactMetricRow(
                         label: localizations.temperature,
@@ -1019,7 +1083,9 @@ class TemperatureMonitorCard extends StatelessWidget {
       height: 150,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(90),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withAlpha(90),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
@@ -1214,7 +1280,9 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(width: 12),
