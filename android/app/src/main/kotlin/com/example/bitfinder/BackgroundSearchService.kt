@@ -26,7 +26,18 @@ class BackgroundSearchService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        return START_STICKY
+        // The search state belongs to the Flutter isolate. Restarting only this
+        // notification service would not restart the search and would keep
+        // consuming the Android foreground-service quota.
+        return START_NOT_STICKY
+    }
+
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        // Android 15+ gives a foreground service only a few seconds to stop after
+        // its type-specific quota expires. This must be handled synchronously in
+        // the native service because the Flutter engine may be suspended.
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     private fun createChannel() {
